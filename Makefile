@@ -31,3 +31,7 @@ plot_1: plot1.gnuplot cluster.log
 
 run: $(PROG)
 	./$<
+
+pack: cluster.log
+	tar cjf cluster.tar.bz2 cluster.log simulation.cpp
+

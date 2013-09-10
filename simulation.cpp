@@ -11,15 +11,15 @@ using namespace std;
 
 
 namespace params {
-	const int relaxation_iterations 	= 0 * 100 * 1000;
-	const int iterations 				= 1000 * 1000;
-	const int N = 100;
+	const int relaxation_iterations 	= 5;
+	const int iterations 				= 100 * 1000;
+	const int N = 1000;
 	const ld L = 100;
-	const ld epsilon = 10;	/* ? */
-	const ld mu = 0.1;
-	const ld D_E = 0;
+	const ld epsilon = 1;
+	const ld mu = 10;
+	const ld D_E = 0.01;
 	const ld D_v = 0;
-	const ld D_phi = 1e-2;
+	const ld D_phi = 0.2;
 	const ld sqrt2_D_E = sqrt(2 * D_E);
 	const ld sqrt2_D_v = sqrt(2 * D_v);
 	const ld sqrt2_D_phi = sqrt(2 * D_phi);
@@ -94,9 +94,9 @@ int main()
 {
 	Cluster cluster(params::N, params::L, params::epsilon);
 	cluster.init_log("cluster.log");
-	cluster.seed_randomly(0.1, 0.9);
+	cluster.seed_randomly(-0.5, 0.5);
 	const int progressbar_len = 64;
-	const int update_mask = 63;
+	const int update_mask = 255;
 	for (int i = 0; i < progressbar_len; ++i)
 		putc('-', stdout);
 	puts("");
