@@ -38,6 +38,7 @@ private:
 	char buffer[128];
 
 	Point get_mean_field_speed(const Point& particle);
+	Point get_avg_speed();
 };
 
 #endif /* __SSU_KMY_CLUSTER_H_ */

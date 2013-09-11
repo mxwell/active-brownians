@@ -44,8 +44,8 @@ void Cluster::seed_randomly(const ld& speed_lowest,
 void Cluster::evolve(speed_integrator speed_step,
 		position_integrator position_step)
 {
+	Point u_A = get_avg_speed();
 	for (int i = 0; i < N; ++i) {
-		Point u_A = get_mean_field_speed(r[i]);
 		r[i] = position_step(r[i], v[i]);
 		r[i].normalize_to_rect(0, L, 0, L);
 		v[i] = speed_step(v[i], u_A);
@@ -95,6 +95,15 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 		field_speed = field_speed + v[i];
 	}
 	return field_speed * (1. / particles);
+}
+
+Point Cluster::get_avg_speed()
+{
+	Point avg_speed(0,0);
+	for (int i = 0; i < N; ++i) {
+		avg_speed = avg_speed + v[i];
+	}
+	return avg_speed * (1. / N);
 }
 
 void Cluster::init_log(const char *log_file)

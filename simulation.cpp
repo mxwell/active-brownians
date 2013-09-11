@@ -9,17 +9,16 @@
 
 using namespace std;
 
-
 namespace params {
 	const int relaxation_iterations 	= 5;
-	const int iterations 				= 100 * 1000;
-	const int N = 1000;
+	const int iterations 				= 400 * 1000;
+	const int N = 10000;
 	const ld L = 100;
-	const ld epsilon = 1;
-	const ld mu = 10;
-	const ld D_E = 0.01;
+	const ld epsilon = 1e9;
+	const ld mu = 2.5;
+	const ld D_E = 0.05;
 	const ld D_v = 0;
-	const ld D_phi = 0.2;
+	const ld D_phi = 0.24;
 	const ld sqrt2_D_E = sqrt(2 * D_E);
 	const ld sqrt2_D_v = sqrt(2 * D_v);
 	const ld sqrt2_D_phi = sqrt(2 * D_phi);

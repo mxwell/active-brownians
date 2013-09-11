@@ -30,8 +30,9 @@ plot_1: plot1.gnuplot cluster.log
 	gnuplot $<
 
 run: $(PROG)
-	./$<
+	time ./$<
 
 pack: cluster.log
 	tar cjf cluster.tar.bz2 cluster.log simulation.cpp
+	echo "Packed: `stat -c%s cluster.log` -> `stat -c%s cluster.tar.bz2`"
 
