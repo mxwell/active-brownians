@@ -15,7 +15,12 @@ namespace params {
 	const int iterations 				= 400 * 1000;
 	const int N = 10000;
 	const ld L = 100;
-	const ld epsilon = 1e9;
+	/* @local_visibility: if true, then a particle can observe
+	 * only particles in disk-like area with radius @epsilon,
+	 * otherwise any particle can see any other particle
+	 */
+	const bool local_visibility = true;
+	const ld epsilon = 1;
 	const ld mu = 2.5;
 	const ld D_E = 0.05;
 	const ld D_v = 0;
@@ -101,7 +106,8 @@ void generate_output_name(char *name)
 
 int main()
 {
-	Cluster cluster(params::N, params::L, params::epsilon);
+	Cluster cluster(params::N, params::L,
+			params::local_visibility, params::epsilon);
 	char output_name[128];
 	generate_output_name(output_name);
 	printf("log will be put to '%s'\n", output_name);

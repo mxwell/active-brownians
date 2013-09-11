@@ -1,7 +1,7 @@
 #include "cluster.h"
 
-Cluster::Cluster(const int& N, const ld& L, const ld& epsilon):
-	N(N), L(L), epsilon(epsilon)
+Cluster::Cluster(const int& N, const ld& L, bool local_visibility, const ld& epsilon):
+	N(N), L(L), local_visibility(local_visibility), epsilon(epsilon)
 {
 	r.resize(N);
 	v.resize(N);	
@@ -15,7 +15,7 @@ Cluster::~Cluster()
 }
 
 void Cluster::seed_randomly(const ld& speed_lowest,
-							const ld& speed_highest)
+			    const ld& speed_highest)
 {
 	const ld center = 0.5 * L;
 	const ld magnitude = 0.1 * L;
@@ -44,11 +44,20 @@ void Cluster::seed_randomly(const ld& speed_lowest,
 void Cluster::evolve(speed_integrator speed_step,
 		position_integrator position_step)
 {
-	Point u_A = get_avg_speed();
-	for (int i = 0; i < N; ++i) {
-		r[i] = position_step(r[i], v[i]);
-		r[i].normalize_to_rect(0, L, 0, L);
-		v[i] = speed_step(v[i], u_A);
+	if (local_visibility) {
+		for (int i = 0; i < N; ++i) {
+			Point u_A = get_mean_field_speed(r[i]);
+			r[i] = position_step(r[i], v[i]);
+			r[i].normalize_to_rect(0, L, 0, L);
+			v[i] = speed_step(v[i], u_A);
+		}
+	} else {
+		Point u_A = get_avg_speed();
+		for (int i = 0; i < N; ++i) {
+			r[i] = position_step(r[i], v[i]);
+			r[i].normalize_to_rect(0, L, 0, L);
+			v[i] = speed_step(v[i], u_A);
+		}
 	}
 }
 
@@ -75,7 +84,7 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 		virtuals[virtuals_count++] = particle + Point(-L, L);
 	if ((particle - Point(L, L)).length() < epsilon)
 		virtuals[virtuals_count++] = particle + Point(-L, -L);
-	/* epsilon shoulda be small enough */
+	/* epsilon should be small enough */
 	assert(virtuals_count < 5);
 
 	Point field_speed(0, 0);

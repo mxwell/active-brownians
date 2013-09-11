@@ -18,7 +18,9 @@ typedef Point (*position_integrator)(Point, Point);
 class Cluster
 {
 public:
-	Cluster(const int& N, const ld& L, const ld &epsilon);
+	Cluster(const int &N, const ld &L,
+		bool local_visibility,
+		const ld &epsilon = 0);
 	~Cluster();
 
 	void seed_randomly(const ld& speed_lowest,
@@ -30,6 +32,7 @@ public:
 private:
 	int N;
 	ld L;
+	bool local_visibility;
 	ld epsilon;
 	bool seeded;
 	std::vector<Point> r;
