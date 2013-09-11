@@ -22,7 +22,7 @@ cluster.o: cluster.cpp include/cluster.h
 
 
 clean:
-	rm -f $(PROG) *.o
+	rm -fv $(PROG) *.o
 
 clena: clean
 
@@ -35,4 +35,7 @@ run: $(PROG)
 pack: cluster.log
 	tar cjf cluster.tar.bz2 cluster.log simulation.cpp
 	echo "Packed: `stat -c%s cluster.log` -> `stat -c%s cluster.tar.bz2`"
+
+clean_logs:
+	rm -fv cluster-*.log
 
