@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 
 #include <vector>
 
@@ -89,10 +90,22 @@ Point heun_position(Point r, Point v)
 	return r + v * params::rh;
 }
 
+void generate_output_name(char *name)
+{
+	char timestamp_buf[64];
+	time_t t1 = time(NULL);
+	struct tm *t2 = localtime(&t1);
+	strftime(timestamp_buf, sizeof(timestamp_buf), "%b%d-%H%M", t2);
+	sprintf(name, "cluster-%s.log", timestamp_buf);
+}
+
 int main()
 {
 	Cluster cluster(params::N, params::L, params::epsilon);
-	cluster.init_log("cluster.log");
+	char output_name[128];
+	generate_output_name(output_name);
+	printf("log will be put to '%s'\n", output_name);
+	cluster.init_log(output_name);
 	cluster.seed_randomly(-0.5, 0.5);
 	const int progressbar_len = 64;
 	const int update_mask = 255;
