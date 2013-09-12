@@ -1,0 +1,2 @@
+time ./simulation configs/params.lua 2>&1 | tee run.log; make pack
+

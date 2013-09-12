@@ -4,35 +4,95 @@
 
 #include <vector>
 
+#include <err.h>
+
 #include <gaussian_gen.h>
 #include <point.h>
 #include <cluster.h>
+#include <luautils.h>
 
 using namespace std;
 
 namespace params {
-	const int relaxation_iterations 	= 5;
-	const int iterations 				= 400 * 1000;
-	const int N = 10000;
-	const ld L = 100;
+	int relaxation_iterations 	= 5;
+	int iterations 				= 400 * 1000;
+	int N = 10000;
+	ld L_size = 100;
 	/* @local_visibility: if true, then a particle can observe
 	 * only particles in disk-like area with radius @epsilon,
 	 * otherwise any particle can see any other particle
 	 */
-	const bool local_visibility = true;
-	const ld epsilon = 1;
-	const ld mu = 2.5;
-	const ld D_E = 0.05;
-	const ld D_v = 0;
-	const ld D_phi = 0.24;
-	const ld sqrt2_D_E = sqrt(2 * D_E);
-	const ld sqrt2_D_v = sqrt(2 * D_v);
-	const ld sqrt2_D_phi = sqrt(2 * D_phi);
+	bool local_visibility = true;
+	ld epsilon = 1;
+	ld mu = 2.5;
+	ld D_E = 0.05;
+	ld D_v = 0;
+	ld D_phi = 0.24;
+	ld sqrt2_D_E = sqrt(2 * D_E);
+	ld sqrt2_D_v = sqrt(2 * D_v);
+	ld sqrt2_D_phi = sqrt(2 * D_phi);
 
-	const ld h = 0.005;
-	const ld sqrt_h = sqrt(h);
+	ld h = 0.005;
+	ld sqrt_h = sqrt(h);
 
-	const ld rh = h;
+	ld rh = h;
+
+	/* @returns 0 if ok, -1 otherwise */
+	int load_params(const char *file_name) {
+		lua_State *L = luaL_newstate();
+		luaL_openlibs(L);
+		if (luaL_dofile(L, file_name) == 1) {
+			err(EXIT_FAILURE, "can't load params from %s\n",
+					file_name);
+		}
+		if (lua_intexpr(L, "integration.iterations.relaxation",
+					&relaxation_iterations) == 0)
+			return -1;
+		printf("relaxation_iterations: %d\n", relaxation_iterations);
+		if (lua_intexpr(L, "integration.iterations.observation",
+					&iterations) == 0)
+			return -1;
+		printf("iterations: %d\n", iterations);
+		if (lua_numberexpr(L, "integration.time_step", &h) == 0)
+			return -1;
+		printf("h: %lf\n", h);
+		rh = h;
+		sqrt_h = sqrt(h);
+		if (lua_intexpr(L, "model.number_of_particles", &N) == 0)
+			return -1;
+		printf("N: %d\n", N);
+		if (lua_numberexpr(L, "model.rectangle_size", &L_size) == 0)
+			return -1;
+		printf("L_size: %lf\n", L_size);
+		local_visibility = lua_boolexpr(L, "model.local_visibility");
+		if (local_visibility) {
+			if (lua_numberexpr(L, "model.epsilon", &epsilon) == 0)
+				return -1;
+			printf("local visibility with epsilon: %lf\n", epsilon);
+		} else {
+			printf("global visibility\n");
+		}
+		if (lua_numberexpr(L, "model.mu", &mu) == 0)
+			return -1;
+		printf("mu: %lf\n", mu);
+		if (lua_numberexpr(L, "model.noise_intensities.passive_noise",
+					&D_E) == 0)
+			return -1;
+		printf("D_E: %lf\n", D_E);
+		sqrt2_D_E = sqrt(2 * D_E);
+		if (lua_numberexpr(L, "model.noise_intensities.speed_noise",
+					&D_v) == 0)
+			return -1;
+		printf("D_v: %lf\n", D_v);
+		sqrt2_D_v = sqrt(2 * D_v);
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise",
+					&D_phi) == 0)
+			return -1;
+		printf("D_phi: %lf\n", D_phi);
+		sqrt2_D_phi = sqrt(2 * D_phi);
+		lua_close(L);
+		return 0;
+	}
 };
 
 inline Point f(Point v, Point u_A)
@@ -104,9 +164,16 @@ void generate_output_name(char *name)
 	sprintf(name, "cluster-%s.log", timestamp_buf);
 }
 
-int main()
+int main(int argc, char const *argv[])
 {
-	Cluster cluster(params::N, params::L,
+	if (argc > 1) {
+		if (params::load_params(argv[1]) != 0) {
+			printf("problems occur while loading params "
+				"from '%s'\n", argv[1]);
+			return -1;
+		}
+	}
+	Cluster cluster(params::N, params::L_size,
 			params::local_visibility, params::epsilon);
 	char output_name[128];
 	generate_output_name(output_name);
@@ -132,6 +199,10 @@ int main()
 			}
 		}
 	}
+	while (progressbar_len > progress) {
+		putc('#', stdout);
+		++progress;
+	}
 	puts("");
 
 	puts("tracing");
@@ -150,6 +221,10 @@ int main()
 			if (flag_to_flush)
 				fflush(stdout);
 		}
+	}
+	while (progressbar_len > progress) {
+		putc('#', stdout);
+		++progress;
 	}
 	puts("");
 	cluster.exit_log();

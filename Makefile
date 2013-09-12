@@ -1,7 +1,8 @@
 PROG		= simulation
-LDFLAGS 	+= -lm -lstdc++
-CPPFLAGS	+= -std=c++0x -Wall -Werror -Iinclude
-OBJFILES 	= simulation.o gaussian_gen.o point.o cluster.o
+LDFLAGS 	+= -lm -lstdc++ -llua5.1
+CPPFLAGS	+= -std=c++0x -Wall -Werror -Iinclude -I/usr/include -lm -lstdc++ -llua5.1
+
+OBJFILES 	= simulation.o gaussian_gen.o point.o cluster.o luautils.o
 
 all: $(PROG)
 
@@ -21,6 +22,9 @@ point.o: point.cpp include/point.h
 cluster.o: cluster.cpp include/cluster.h
 
 
+luautils.o: luautils.cpp include/luautils.h
+
+
 clean:
 	rm -fv $(PROG) *.o
 
@@ -32,9 +36,9 @@ plot_1: plot1.gnuplot cluster.log
 run: $(PROG)
 	time ./$<
 
-pack: cluster.log
-	tar cjf cluster.tar.bz2 cluster.log simulation.cpp
-	echo "Packed: `stat -c%s cluster.log` -> `stat -c%s cluster.tar.bz2`"
+pack: cluster-*.log run.log
+	tar cvjf output/cluster-`date +%b%d-%H%M`.tar.bz2 cluster-*.log run.log
+	rm -fv cluster-*.log run.log
 
 clean_logs:
 	rm -fv cluster-*.log
