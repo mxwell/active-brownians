@@ -10,6 +10,7 @@
 #include <point.h>
 #include <cluster.h>
 #include <luautils.h>
+#include <progressbar.h>
 
 using namespace std;
 
@@ -173,6 +174,7 @@ int main(int argc, char const *argv[])
 			return -1;
 		}
 	}
+	ProgressBar progress;
 	Cluster cluster(params::N, params::L_size,
 			params::local_visibility, params::epsilon);
 	char output_name[128];
@@ -180,53 +182,22 @@ int main(int argc, char const *argv[])
 	printf("log will be put to '%s'\n", output_name);
 	cluster.init_log(output_name);
 	cluster.seed_randomly(-0.5, 0.5);
-	const int progressbar_len = 64;
-	const int update_mask = 255;
-	for (int i = 0; i < progressbar_len; ++i)
-		putc('-', stdout);
-	puts("");
-
+	
 	puts("relaxation");
-	int progress = 0;
-
+	progress.start(params::relaxation_iterations);
 	for (int it = 0; it < params::relaxation_iterations; ++it) {
 		cluster.evolve(heun_speed, heun_position);
-		if ((it & update_mask) == update_mask) {
-			while (it * progressbar_len / params::relaxation_iterations > progress) {
-				putc('#', stdout);
-				fflush(stdout);
-				++progress;
-			}
-		}
+		progress.check_and_move(it);
 	}
-	while (progressbar_len > progress) {
-		putc('#', stdout);
-		++progress;
-	}
-	puts("");
+	progress.finish_successfully();
 
 	puts("tracing");
-	progress = 0;
-
+	progress.start(params::iterations);
 	for (int it = 0; it < params::iterations; ++it) {
 		cluster.evolve(heun_speed, heun_position);
-		if ((it & update_mask) == update_mask) {
-			cluster.log_positions();
-			bool flag_to_flush = false;
-			while (it * progressbar_len / params::iterations > progress) {
-				putc('#', stdout);
-				++progress;
-				flag_to_flush = true;
-			}
-			if (flag_to_flush)
-				fflush(stdout);
-		}
+		progress.check_and_move(it);
 	}
-	while (progressbar_len > progress) {
-		putc('#', stdout);
-		++progress;
-	}
-	puts("");
+	progress.finish_successfully();
 	cluster.exit_log();
 	return 0;
 }
