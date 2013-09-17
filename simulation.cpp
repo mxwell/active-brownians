@@ -37,9 +37,41 @@ namespace params {
 	ld sqrt_h = sqrt(h);
 
 	ld rh = h;
+	ld D_phi_start 	= 0.00;
+	ld D_phi_end 	= 0.30;
+	ld D_phi_step	= 0.01;
+	ld D_phi_log_step = -1;
+	ld speed_lowest 	= -1.0;
+	ld speed_highest	= 1.0;
+
+	void set_D_E(const ld& nval)
+	{
+		D_E = nval;
+		sqrt2_D_E = sqrt(2 * D_E);
+	}
+
+	void set_D_v(const ld &nval)
+	{
+		D_v = nval;
+		sqrt2_D_v = sqrt(2 * D_v);
+	}
+
+	void set_D_phi(const ld &nval)
+	{
+		D_phi = nval;
+		sqrt2_D_phi = sqrt(2 * D_phi);
+	}
+
+	void set_h(const ld &nval)
+	{
+		h = nval;
+		rh = h;
+		sqrt_h = sqrt(h);
+	}
 
 	/* @returns 0 if ok, -1 otherwise */
 	int load_params(const char *file_name) {
+		ld temp;
 		lua_State *L = luaL_newstate();
 		luaL_openlibs(L);
 		if (luaL_dofile(L, file_name) == 1) {
@@ -54,11 +86,10 @@ namespace params {
 					&iterations) == 0)
 			return -1;
 		printf("iterations: %d\n", iterations);
-		if (lua_numberexpr(L, "integration.time_step", &h) == 0)
+		if (lua_numberexpr(L, "integration.time_step", &temp) == 0)
 			return -1;
+		set_h(temp);
 		printf("h: %lf\n", h);
-		rh = h;
-		sqrt_h = sqrt(h);
 		if (lua_intexpr(L, "model.number_of_particles", &N) == 0)
 			return -1;
 		printf("N: %d\n", N);
@@ -77,20 +108,38 @@ namespace params {
 			return -1;
 		printf("mu: %lf\n", mu);
 		if (lua_numberexpr(L, "model.noise_intensities.passive_noise",
-					&D_E) == 0)
+					&temp) == 0)
 			return -1;
+		set_D_E(temp);
 		printf("D_E: %lf\n", D_E);
-		sqrt2_D_E = sqrt(2 * D_E);
 		if (lua_numberexpr(L, "model.noise_intensities.speed_noise",
-					&D_v) == 0)
+					&temp) == 0)
 			return -1;
+		set_D_v(temp);
 		printf("D_v: %lf\n", D_v);
-		sqrt2_D_v = sqrt(2 * D_v);
-		if (lua_numberexpr(L, "model.noise_intensities.angular_noise",
-					&D_phi) == 0)
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.start",
+					&D_phi_start) == 0)
 			return -1;
-		printf("D_phi: %lf\n", D_phi);
-		sqrt2_D_phi = sqrt(2 * D_phi);
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.finish",
+					&D_phi_end) == 0)
+			return -1;
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.log_step", &D_phi_log_step) == 0) {
+			if (lua_numberexpr(L, "model.noise_intensities.angular_noise.step",
+						&D_phi_step) == 0) {
+				printf("nor @step neither @log_step not found\n");
+				return -1;
+			}
+			printf("D_phi in [%lf, %lf] with linear step %lf\n", D_phi_start, D_phi_end, D_phi_step);
+		} else {
+			printf("D_phi in [%lf, %lf] with logarithmic step %lf\n", D_phi_start, D_phi_end, D_phi_log_step);
+		}
+		set_D_phi(D_phi_start);
+		if (lua_numberexpr(L, "model.speed.lowest", &speed_lowest) == 0)
+			return -1;
+		if (lua_numberexpr(L, "model.speed.highest", &speed_highest) == 0)
+			return -1;
+		printf("initial speeds in [%lf, %lf]\n",
+			speed_lowest, speed_highest);
 		lua_close(L);
 		return 0;
 	}
@@ -180,24 +229,43 @@ int main(int argc, char const *argv[])
 	char output_name[128];
 	generate_output_name(output_name);
 	printf("log will be put to '%s'\n", output_name);
-	cluster.init_log(output_name);
-	cluster.seed_randomly(-0.5, 0.5);
-	
-	puts("relaxation");
-	progress.start(params::relaxation_iterations);
-	for (int it = 0; it < params::relaxation_iterations; ++it) {
-		cluster.evolve(heun_speed, heun_position);
-		progress.check_and_move(it);
+	FILE *udphi = fopen(output_name, "wt");
+	if (udphi == NULL) {
+		err(EXIT_FAILURE, "can't open file to write\n");
 	}
-	progress.finish_successfully();
+	bool logarithmic = params::D_phi_log_step > 0;
+	for (ld d = params::D_phi_start; d <= params::D_phi_end + 1e-7;
+			/* see end of loop */) {
+		params::set_D_phi(d);
+		cluster.reinit(params::N, params::L_size,
+				params::local_visibility, params::epsilon);
+		cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
+		printf("relaxation");
+		progress.start(params::relaxation_iterations);
+		for (int it = 0; it < params::relaxation_iterations; ++it) {
+			cluster.evolve(heun_speed, heun_position);
+			progress.check_and_move(it);
+		}
+		progress.finish_successfully();
+		printf("observation");
+		progress.start(params::iterations);
+		cluster.start_speed_measurement();
+		for (int it = 0; it < params::iterations; ++it) {
+			cluster.evolve(heun_speed, heun_position);
+			progress.check_and_move(it);
+		}
+		progress.finish_successfully();
+		ld avg_speed = cluster.get_measurement();
+		printf("D_phi = %lf, avg.speed = %lf\n", params::D_phi, avg_speed);
+		fflush(stdout);
+		fprintf(udphi, "%lf\t%lf\n", params::D_phi, avg_speed);
 
-	puts("tracing");
-	progress.start(params::iterations);
-	for (int it = 0; it < params::iterations; ++it) {
-		cluster.evolve(heun_speed, heun_position);
-		progress.check_and_move(it);
+		if (logarithmic) {
+			d *= params::D_phi_log_step;
+		} else {
+			d += params::D_phi_step;
+		}
 	}
-	progress.finish_successfully();
-	cluster.exit_log();
+	fclose(udphi);
 	return 0;
 }

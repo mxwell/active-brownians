@@ -3,6 +3,5 @@ visual-simulations
 *.eps
 *.log
 simulation
-configs
 output
 

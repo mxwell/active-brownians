@@ -5,7 +5,7 @@
 
 enum source_id {
 		i_x, i_y, i_v, i_phi, default_gen,
-		NUMBER_OF_SOURCES
+		ran3_id, NUMBER_OF_SOURCES
 };
 
 class GaussianGen
@@ -13,6 +13,7 @@ class GaussianGen
 public:
 	static GaussianGen& Instance();
 	float value(source_id id);
+	float ran3_value();
 
 private:
 	GaussianGen();

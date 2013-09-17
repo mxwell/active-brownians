@@ -7,7 +7,7 @@
 #include <gaussian_gen.h>
 #include <cstdio>
 
-const int sample_init[] = {10, 531, -42, 897, 733, -6, -78, 320};
+const int sample_init[] = {10, 531, -42, 897, 733, -6, -78, -371, 320};
 
 GaussianGen& GaussianGen::Instance()
 {
@@ -24,4 +24,9 @@ GaussianGen::GaussianGen()
 float GaussianGen::value(source_id id)
 {
 	return gasdev(&idumms[id]);
+}
+
+float GaussianGen::ran3_value()
+{
+	return ran3(&idumms[ran3_id]);
 }
