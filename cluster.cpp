@@ -141,13 +141,18 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 	return field_speed * (1. / particles);
 }
 
-Point Cluster::get_avg_speed()
+Point Cluster::get_avg_speed() const
 {
 	Point avg_speed(0,0);
 	for (int i = 0; i < N; ++i) {
 		avg_speed = avg_speed + v[i];
 	}
 	return avg_speed * (1. / N);
+}
+
+ld Cluster::get_avg_speed_val() const
+{
+	return get_avg_speed().length();
 }
 
 void Cluster::init_log(const char *log_file)

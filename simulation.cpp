@@ -247,15 +247,7 @@ int main(int argc, char const *argv[])
 			progress.check_and_move(it);
 		}
 		progress.finish_successfully();
-		printf("observation");
-		progress.start(params::iterations);
-		cluster.start_speed_measurement();
-		for (int it = 0; it < params::iterations; ++it) {
-			cluster.evolve(heun_speed, heun_position);
-			progress.check_and_move(it);
-		}
-		progress.finish_successfully();
-		ld avg_speed = cluster.get_measurement();
+		ld avg_speed = cluster.get_avg_speed_val();
 		printf("D_phi = %lf, avg.speed = %lf\n", params::D_phi, avg_speed);
 		fflush(stdout);
 		fprintf(udphi, "%lf\t%lf\n", params::D_phi, avg_speed);

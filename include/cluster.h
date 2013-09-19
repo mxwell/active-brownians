@@ -37,6 +37,8 @@ public:
 
 	void start_speed_measurement();
 	ld get_measurement() const;
+
+	ld get_avg_speed_val() const;
 private:
 	int N;
 	ld L;
@@ -52,7 +54,7 @@ private:
 	int avg_denominator;
 
 	Point get_mean_field_speed(const Point& particle);
-	Point get_avg_speed();
+	Point get_avg_speed() const;
 };
 
 #endif /* __SSU_KMY_CLUSTER_H_ */

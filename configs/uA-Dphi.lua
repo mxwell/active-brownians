@@ -1,7 +1,7 @@
 integration = {
 	iterations = {
-		relaxation 	= 50 * 1000,
-		observation 	= 5 * 1000
+		relaxation 	= 10 * 1000 * 1000,
+		observation 	= 0
 	},
 	time_step = 0.005,
 }
@@ -20,7 +20,7 @@ model = {
 			finish	= 0.50,
 			step	= 0.01,
 			-- if @log_step present, then @step will be ignored
-			log_step = math.pow(10 / 3.0, 1 / 12.0)
+			log_step = math.pow(10 / 3.0, 1 / 6.0)
 		}
 	},
 	speed = {
