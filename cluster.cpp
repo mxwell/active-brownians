@@ -7,8 +7,10 @@ Cluster::Cluster(const int& N, const ld& L, bool local_visibility, const ld& eps
 
 Cluster::~Cluster()
 {
-	r.clear();
-	v.clear();
+	for (int i = 0; i < 2; ++i) {
+		rs[i].clear();
+		vs[i].clear();
+	}
 }
 
 void Cluster::reinit(const int &N_arg, const ld &L_arg,
@@ -18,8 +20,12 @@ void Cluster::reinit(const int &N_arg, const ld &L_arg,
 	L = L_arg;
 	local_visibility = local_visibility_arg;
 	epsilon = epsilon_arg;
-	r.resize(N);
-	v.resize(N);
+	for (int i = 0; i < 2; ++i) {
+		rs[i].resize(N);
+		vs[i].resize(N);
+	}
+	cur_id = 0;
+	next_id = 1;
 	seeded = false;
 	measurement = false;
 }
@@ -29,6 +35,8 @@ void Cluster::seed_randomly(const ld& speed_lowest,
 {
 	const ld center = 0.5 * L;
 	const ld magnitude = 0.1 * L;
+	std::vector<Point> &r = rs[next_id];
+	std::vector<Point> &v = vs[next_id];
 
 	auto gauss = [] () {
 		return GaussianGen::Instance().value(default_gen);
@@ -49,11 +57,14 @@ void Cluster::seed_randomly(const ld& speed_lowest,
 		*it = Point(vx, vy);
 	}
 	seeded = true;
+	std::swap(cur_id, next_id);
 }
 
 void Cluster::seed_uniformly(const ld &speed_lowest,
 			     const ld &speed_highest)
 {
+	std::vector<Point> &r = rs[next_id];
+	std::vector<Point> &v = vs[next_id];
 	auto ran3 = [] () { return GaussianGen::Instance().ran3_value(); };
 	for (auto it = r.begin(); it != r.end(); ++it) {
 		ld x = 0.01 + ran3() * (L - 0.02);
@@ -68,19 +79,22 @@ void Cluster::seed_uniformly(const ld &speed_lowest,
 		*it = Point(vx, vy);
 	}
 	seeded = true;
+	std::swap(cur_id, next_id);
 }
 
 void Cluster::evolve(speed_integrator speed_step,
 		position_integrator position_step)
 {
+	std::vector<Point> &r = rs[cur_id];
+	std::vector<Point> &rnext = rs[next_id];
+	std::vector<Point> &v = vs[cur_id];
+	std::vector<Point> &vnext = vs[next_id];
 	if (local_visibility) {
-		/* need to fix: calculate speed using old v[i] */
-		assert(0);
 		for (int i = 0; i < N; ++i) {
 			Point u_A = get_mean_field_speed(r[i]);
-			r[i] = position_step(r[i], v[i]);
-			r[i].normalize_to_rect(0, L, 0, L);
-			v[i] = speed_step(v[i], u_A);
+			rnext[i] = position_step(r[i], v[i]);
+			rnext[i].normalize_to_rect(0, L, 0, L);
+			vnext[i] = speed_step(v[i], u_A);
 		}
 	} else {
 		Point u_A = get_avg_speed();
@@ -89,11 +103,12 @@ void Cluster::evolve(speed_integrator speed_step,
 			++avg_denominator;
 		}
 		for (int i = 0; i < N; ++i) {
-			r[i] = position_step(r[i], v[i]);
-			r[i].normalize_to_rect(0, L, 0, L);
-			v[i] = speed_step(v[i], u_A);
+			rnext[i] = position_step(r[i], v[i]);
+			rnext[i].normalize_to_rect(0, L, 0, L);
+			vnext[i] = speed_step(v[i], u_A);
 		}
 	}
+	std::swap(cur_id, next_id);
 }
 
 Point Cluster::get_mean_field_speed(const Point& particle)
@@ -124,6 +139,8 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 
 	Point field_speed(0, 0);
 	int particles = 0;
+	std::vector<Point> &r = rs[cur_id];
+	std::vector<Point> &v = vs[cur_id];
 	for (int i = 0; i < N; ++i) {
 		bool in_field = false;
 		Point& p = r[i];
@@ -143,6 +160,7 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 
 Point Cluster::get_avg_speed() const
 {
+	const std::vector<Point> &v = vs[cur_id];
 	Point avg_speed(0,0);
 	for (int i = 0; i < N; ++i) {
 		avg_speed = avg_speed + v[i];
@@ -171,6 +189,7 @@ void Cluster::exit_log()
 void Cluster::log_positions()
 {
 	assert(log);
+	std::vector<Point> &r = rs[cur_id];
 	for (size_t i = 0; i < r.size(); ++i) {
 		r[i].to_string(buffer, ' ', '\t');
 		fprintf(log, "%s", buffer);

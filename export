@@ -1,2 +1,2 @@
-time ./simulation configs/test.lua 2>&1 | tee run.log; make pack
+time ./simulation configs/uA-Dphi.lua 2>&1 | tee run.log; make pack
 

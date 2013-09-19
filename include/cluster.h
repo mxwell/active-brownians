@@ -45,8 +45,10 @@ private:
 	bool local_visibility;
 	ld epsilon;
 	bool seeded;
-	std::vector<Point> r;
-	std::vector<Point> v;
+	std::vector<Point> rs[2];
+	std::vector<Point> vs[2];
+	int cur_id;
+	int next_id;
 	FILE *log;
 	char buffer[128];
 	bool measurement;

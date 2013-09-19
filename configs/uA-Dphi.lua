@@ -8,9 +8,9 @@ integration = {
 model = {
 	number_of_particles = 100,
 	rectangle_size = 10,
-	local_visibility = false,
+	local_visibility = true,
 	-- if @local_visibility is true, then it'll be visibility radius
-	epsilon = 1,
+	epsilon = 0.1,
 	mu = 1.0,
 	noise_intensities = {
 		passive_noise = 0.01,
