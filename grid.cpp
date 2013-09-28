@@ -45,6 +45,13 @@ void Grid::add(Particle *particle)
 		particle->next->prev = particle;
 }
 
+void Grid::update_for_search(std::vector<Point> *velocities_p)
+{
+	velocities = velocities_p;
+	memset(used, -1, xcells * ycells * sizeof *used);
+	time_cnt = 0;
+}
+
 void Grid::move(Particle *particle, double nx, double ny)
 {
 	int cell_x = (int) (particle->get_x() / cell_xsize);
@@ -75,12 +82,6 @@ void Grid::move(Particle *particle, double nx, double ny)
 
 	if (particle->next != NULL)
 		particle->next->prev = particle;
-}
-
-void Grid::prepare_to_search()
-{
-	memset(used, -1, xcells * ycells * sizeof *used);
-	time_cnt = 0;
 }
 
 bool Grid::cell_in_disc(int gx, int gy,
@@ -123,10 +124,15 @@ const Point Grid::get_cell_speed(Particle *head,
 		double x = head->get_x() - cx;
 		double y = head->get_y() - cy;
 		if (square(x) + square(y) < r2)
-			v = v + head->get_velocity();
+			v = v + get_particle_speed(head);
 		head = head->next;
 	}
 	return v;
+}
+
+const Point &Grid::get_particle_speed(const Particle *particle) const
+{
+	return (*velocities)[particle->getId()];
 }
 
 Point Grid::get_disc_speed(const Particle &particle, double r2)
@@ -213,5 +219,5 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 	fflush(stdout);
 	*/
 	++time_cnt;
-	return v - particle.get_velocity();
+	return v - get_particle_speed(&particle);
 }

@@ -12,13 +12,12 @@
 class Particle {
 
 public:
-	Particle(int id, std::vector<Point> *velocities,
-		double x, double y);
+	Particle(int id, double x, double y);
 
 	/*int get_id() const;*/
 	double get_x() const;
 	double get_y() const;
-	const Point &get_velocity() const;
+	const int getId() const;
 
 	void move_to(const double &nx,
 				 const double &ny);
@@ -32,7 +31,6 @@ private:
 	int id;
 	double x;
 	double y;
-	std::vector<Point> *velocities;
 };
 
 #endif /* __SSU_KMY_PARTICLE_H_ */

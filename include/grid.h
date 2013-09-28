@@ -17,7 +17,8 @@ public:
 	Grid(double xsize, double ysize,
 		int xcells, int ycells);
 	~Grid();
-	void add(Particle *particle);	
+	void add(Particle *particle);
+	void update_for_search(std::vector<Point> *velocities);	
 	
 	/**
 	 * checks if @particle is out of its cell;
@@ -28,8 +29,6 @@ public:
 	 */
 	void move(Particle *particle, double nx, double ny);
 
-	/* clears @used to -1 before serie of searches */
-	void prepare_to_search();
 	Point get_disc_speed(const Particle &particle, double r2);
 private:
 	/* spatial sizes of area under grid */
@@ -43,6 +42,8 @@ private:
 	double cell_ysize;
 	/* access: cells[x][y], not cells[y][x] */
 	std::vector<std::vector<Particle*> > cells;
+	/* velocities of particles, connection via Particle's @id */
+	std::vector<Point> *velocities;
 
 	/**
 	 * @q and @used are for BFS
@@ -78,6 +79,7 @@ private:
 	 */
 	const Point get_cell_speed(Particle *head,
 		double cx, double cy, double r2);
+	const Point &get_particle_speed(const Particle *particle) const;
 };
 
 #endif /* __SSU_KMY_GRID_H_ */

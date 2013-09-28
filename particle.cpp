@@ -5,9 +5,8 @@
 
 #include "particle.h"
 
-Particle::Particle(int id, std::vector<Point> *velocities,
-	double x, double y) :
-	id(id), velocities(velocities), x(x), y(y)
+Particle::Particle(int id, double x, double y) :
+	id(id), x(x), y(y)
 {
 	next = prev = NULL;
 }
@@ -22,9 +21,9 @@ double Particle::get_y() const
 	return y;
 }
 
-const Point &Particle::get_velocity() const
+const int Particle::getId() const
 {
-	return (*velocities)[id];
+	return id;
 }
 
 void Particle::move_to(const double &nx, const double &ny)

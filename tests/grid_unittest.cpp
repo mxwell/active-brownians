@@ -16,14 +16,14 @@ protected:
 	void addParticle(double x, double y, double vx, double vy) {
 		int id = (int) velocities.size();
 		velocities.push_back(Point(vx, vy));
-		Particle *particle = new Particle(id, &velocities, x, y);
+		Particle *particle = new Particle(id, x, y);
 		particles.push_back(particle);
 		grid->add(particle);
 	}
 
 	Point getDiscSpeed(int particleId, double radius) {
 		if (!gridPrepared) {
-			grid->prepare_to_search();
+			grid->update_for_search(&velocities);
 			gridPrepared = true;
 		}
 		return grid->get_disc_speed(*(particles[particleId]), radius * radius);
@@ -44,8 +44,7 @@ TEST_F(GridTest, AloneParticle) {
 	ASSERT_EQ(velocities.size(), 1) << "expected size of velocities is 1";
 	ASSERT_EQ(particles.size(), 1) << "expected size of particles is 1";
 
-	grid->prepare_to_search();
-	Point ds = grid->get_disc_speed(*(particles[0]), 1);
+	Point ds = getDiscSpeed(0, 1);
 
 	ASSERT_TRUE(ds.length() < 1e-9) << "expected near zero speed of disc";
 }
@@ -60,9 +59,8 @@ TEST_F(GridTest, TwoParticlesInDisc) {
 
 	ASSERT_EQ(velocities.size(), 3) << "expected 3 elements in velocities";
 
-	grid->prepare_to_search();
 	/* radius = 2: both particles are inside the disc */
-	Point ds = grid->get_disc_speed(*(particles[0]), 2 * 2);
+	Point ds = getDiscSpeed(0, 2);
 
 	ASSERT_TRUE(fabs(ds.length() - sqrt(8.0)) < 1e-7) << "expected disc speed is sqrt(8)" <<
 		", actual value is " << ds.length();
