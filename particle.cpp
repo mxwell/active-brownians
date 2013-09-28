@@ -24,7 +24,7 @@ double Particle::get_y() const
 
 const Point &Particle::get_velocity() const
 {
-	return velocities->[id];
+	return (*velocities)[id];
 }
 
 void Particle::move_to(const double &nx, const double &ny)

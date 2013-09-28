@@ -7,7 +7,9 @@
 #define __SSU_KMY_GRID_H_
 
 #include <vector>
+#include <queue>
 #include <cassert>
+#include <memory.h>
 #include "particle.h"
 
 class Grid {
@@ -45,8 +47,13 @@ private:
 	/**
 	 * @q and @used are for BFS
 	 */
-	queue<std::pair<int, int> > q;
+	std::queue<std::pair<int, int> > q;
 	int *used;
+	/**
+	 * @centers is queue, parallel to @q,
+	 * stores virtual center for cell in @q
+	 */
+	std::queue<std::pair<double, double> > centers;
 	/**
 	 * @time_cnt used to fill @used,
 	 * initially it equals to 0,
@@ -64,7 +71,7 @@ private:
 	bool cell_in_disc(int gx, int gy,
 		double cx, double cy, double r2) const;
 	inline int get_used(int x, int y);
-	inline void set_used(int y, int y, int val);
+	inline void set_used(int x, int y, int val);
 	/**
 	 * @get_cell_speed - sums up velocities of particles in list @head,
 	 * if they are in disc with params @cx, @cy, @r2
