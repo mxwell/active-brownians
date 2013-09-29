@@ -4,4 +4,6 @@ visual-simulations
 *.log
 simulation
 output
-
+*.a
+grid_unittest
+results/
