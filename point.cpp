@@ -31,6 +31,11 @@ const Point Point::operator*(const Point& other)
 	return Point(_x * other._x, _y * other._y);
 }
 
+const Point operator/(const Point& p, const ld &divisor)
+{
+	return Point(p._x / divisor, p._y / divisor);
+}
+
 const ld Point::length() const
 {
 	return sqrt(sqr(_x) + sqr(_y));
@@ -78,11 +83,11 @@ void Point::normalize_to_rect(const ld& left, const ld& right,
 	ld width = right - left;
 	if (_x < left)
 		_x += width;
-	else if (_x > right)
+	else if (_x > right - EPS)
 		_x -= width;
 	ld height = top - bottom;
 	if (_y < bottom)
 		_y += height;
-	else if (_y > top)
+	else if (_y > top - EPS)
 		_y -= height;
 }

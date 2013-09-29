@@ -54,14 +54,35 @@ void Grid::update_for_search(std::vector<Point> *velocities_p)
 
 void Grid::move(Particle *particle, double nx, double ny)
 {
+	const double EPS = 1e-9;
+	assert(-EPS < nx && nx < xsize + EPS);
+	assert(-EPS < ny && ny < ysize + EPS);
+	
 	int cell_x = (int) (particle->get_x() / cell_xsize);
 	int cell_y = (int) (particle->get_y() / cell_ysize);
+	particle->move_to(nx, ny);
 
 	int cell_nx = (int) (nx / cell_xsize);
 	int cell_ny = (int) (ny / cell_ysize);
 
-	if (cell_x == cell_nx || cell_y == cell_ny)
+	if (cell_x == cell_nx && cell_y == cell_ny)
 		return;
+
+#define correctness(num, rlim) 	(0 <= (num) && (num) < (rlim))
+	if (!correctness(cell_x, xcells)) {
+		printf("wrong cell_x: %d\n", cell_x);
+	}
+	if (!correctness(cell_y, ycells)) {
+		printf("wrong cell_y: %d\n", cell_y);
+	}
+	if (!correctness(cell_nx, xcells)) {
+		printf("wrong cell_nx: %d\n", cell_nx);
+		printf("id = %d\n", particle->get_id());
+	}
+	if (!correctness(cell_ny, ycells)) {
+		printf("wrong cell_ny: %d\n", cell_ny);
+	}
+	fflush(stdout);
 
 	if (particle->prev != NULL)
 		particle->prev->next = particle->next;
@@ -73,8 +94,6 @@ void Grid::move(Particle *particle, double nx, double ny)
 	if (particle->next != NULL)
 		particle->next->prev = particle->prev;
 
-	particle->move_to(nx, ny);
-
 	/* the rest is the same as method ::add */
 	particle->prev = NULL;
 	particle->next = cells[cell_nx][cell_ny];
@@ -82,6 +101,11 @@ void Grid::move(Particle *particle, double nx, double ny)
 
 	if (particle->next != NULL)
 		particle->next->prev = particle;
+}
+
+void Grid::move(Particle *particle, Point &next_pos)
+{
+	move(particle, next_pos._x, next_pos._y);
 }
 
 bool Grid::cell_in_disc(int gx, int gy,
@@ -123,8 +147,11 @@ const Point Grid::get_cell_speed(Particle *head,
 	while (head != NULL) {
 		double x = head->get_x() - cx;
 		double y = head->get_y() - cy;
-		if (square(x) + square(y) < r2)
+		if (square(x) + square(y) < r2) {
 			v = v + get_particle_speed(head);
+			++found_particles;
+			found_list.push_back(head->get_id());
+		}
 		head = head->next;
 	}
 	return v;
@@ -132,7 +159,7 @@ const Point Grid::get_cell_speed(Particle *head,
 
 const Point &Grid::get_particle_speed(const Particle *particle) const
 {
-	return (*velocities)[particle->getId()];
+	return (*velocities)[particle->get_id()];
 }
 
 Point Grid::get_disc_speed(const Particle &particle, double r2)
@@ -148,6 +175,8 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 	q.push(std::make_pair(cellx, celly));
 	centers.push(std::make_pair(cx, cy));
 
+	found_particles = 0;
+	found_list.clear();
 	Point v = get_cell_speed(cells[cellx][celly], cx, cy, r2);
 	set_used(cellx, celly, time_cnt);
 	while (!q.empty()) {
@@ -219,5 +248,34 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 	fflush(stdout);
 	*/
 	++time_cnt;
-	return v - get_particle_speed(&particle);
+	if (found_particles <= 1)
+		return Point(0, 0);
+	return (v - get_particle_speed(&particle)) / (found_particles - 1);
+}
+
+int Grid::particlesInDisc() const {
+	return found_particles > 0 ? found_particles - 1 : 0;
+}
+
+const std::vector<int> &Grid::getFoundParticles() const {
+	return found_list;
+}
+
+void Grid::dump_grid(const char *file_name)
+{
+	FILE *dump = fopen(file_name, "wt");
+	for (int i = 0; i < xcells; ++i) {
+		for (int j = 0; j < ycells; ++j) {
+			if (cells[i][j] != NULL) {
+				fprintf(dump, "in cell at (%lf,%lf)\n",
+					i * cell_xsize, j * cell_ysize);
+				Particle *head = cells[i][j];
+				while (head != NULL) {
+					fprintf(dump, "- #%d\n", head->get_id());
+					head = head->next;
+				}
+			}
+		}
+	}
+	fclose(dump);
 }

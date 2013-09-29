@@ -28,8 +28,12 @@ public:
 	 *				in grid already
 	 */
 	void move(Particle *particle, double nx, double ny);
+	void move(Particle *particle, Point &next_pos);
 
 	Point get_disc_speed(const Particle &particle, double r2);
+	int particlesInDisc() const;
+	const std::vector<int> &getFoundParticles() const;
+	void dump_grid(const char *file_name);
 private:
 	/* spatial sizes of area under grid */
 	double xsize;
@@ -55,6 +59,8 @@ private:
 	 * stores virtual center for cell in @q
 	 */
 	std::queue<std::pair<double, double> > centers;
+	/* amount of found in disc particles */
+	int found_particles;
 	/**
 	 * @time_cnt used to fill @used,
 	 * initially it equals to 0,
@@ -80,6 +86,10 @@ private:
 	const Point get_cell_speed(Particle *head,
 		double cx, double cy, double r2);
 	const Point &get_particle_speed(const Particle *particle) const;
+
+	/* testing part */
+#warning	"if not testing, then remove testing part"
+	std::vector<int> found_list;
 };
 
 #endif /* __SSU_KMY_GRID_H_ */

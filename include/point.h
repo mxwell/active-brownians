@@ -7,6 +7,7 @@
 
 class Point
 {
+	friend class Grid;
 public:
 	Point() {}
 	Point(ld x, ld y) : _x(x), _y(y) {}
@@ -14,6 +15,7 @@ public:
 	friend const Point operator-(const Point&, const Point&);
 	friend const Point operator*(const ld&, const Point&);
 	friend const Point operator*(const Point&, const ld&);
+	friend const Point operator/(const Point&, const ld&);
 	/* Hadamard product */
 	const Point operator*(const Point& other);
 	const ld length() const;
@@ -31,8 +33,5 @@ private:
 	ld _x;
 	ld _y;
 };
-
-const Point operator*(const ld&, const Point&);
-const Point operator*(const Point&, const ld&);
 
 #endif /* __SSU_KMY_POINT_H_ */

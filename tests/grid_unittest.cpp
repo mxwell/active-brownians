@@ -1,7 +1,10 @@
 #include <vector>
+#include <algorithm>
 
 #include "grid.h"
 #include "gtest/gtest.h"
+
+const static double EPS_FOR_FP_NUMBERS = EPS;
 
 class GridTest : public ::testing::Test {
 protected:
@@ -29,6 +32,63 @@ protected:
 		return grid->get_disc_speed(*(particles[particleId]), radius * radius);
 	}
 
+	Point getDiscSpeedNaively(int centerId, double radius) {
+		Point speed(0, 0);
+		found_particles = 0;
+		found_list.clear();
+		int n = (int) velocities.size();
+
+		found_list.push_back(centerId);		
+		Point center(particles[centerId]->get_x(), particles[centerId]->get_y());
+		std::vector<Point> centers;
+		const int cdx[9] = {-1, -1, -1, 0, 0, 0, 1, 1, 1};
+		const int cdy[9] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
+		for (int i = 0; i < 9; ++i)
+			centers.push_back(center + Point(cdx[i] * side, cdy[i] * side));
+
+		for (int i = 0; i < n; ++i) {
+			if (i == centerId)
+				continue;
+			Point p(particles[i]->get_x(), particles[i]->get_y());
+			bool inside = false;
+			for (size_t j = 0; j < centers.size(); ++j) {
+				if ((centers[j] - p).length() < radius) {
+					inside = true;
+					break;
+				}
+			}
+			if (inside) {
+				speed = speed + velocities[i];
+				++found_particles;
+				found_list.push_back(i);
+			}
+		}
+		return speed / found_particles;
+	}
+
+	void evolve() {
+		fflush(stdout);
+		for (size_t i = 0; i < particles.size(); ++i) {
+			Particle *p = particles[i];
+			Point next_pos = velocities[i] + Point(p->get_x(), p->get_y());
+			next_pos.normalize_to_rect(0, side, 0, side);
+			grid->move(p, next_pos);
+		}
+	}
+
+	bool speedEqual(const Point &speed, double num) {
+		return fabs(speed.length() - num) < EPS_FOR_FP_NUMBERS;
+	}
+
+	double rnd_xy() {
+		int mod = (int) (side - 1);
+		return 0.5 + rand() % mod;
+	}
+
+	double rnd_v() {
+		return 0.1 * (1 + rand() % 40);
+	}
+
 	/* virtual void TearDown() {} */
 	double side;
 	int ncells;
@@ -36,6 +96,9 @@ protected:
 	std::vector<Point> velocities;
 	std::vector<Particle *> particles;
 	bool gridPrepared;
+	char buffer[1024];
+	int found_particles;
+	std::vector<int> found_list;
 };
 
 TEST_F(GridTest, AloneParticle) {
@@ -46,7 +109,7 @@ TEST_F(GridTest, AloneParticle) {
 
 	Point ds = getDiscSpeed(0, 1);
 
-	ASSERT_TRUE(ds.length() < 1e-9) << "expected near zero speed of disc";
+	ASSERT_TRUE(speedEqual(ds, 0)) << "expected near zero speed of disc";
 }
 
 /* 3 particles: 2 of them in disc around the 3rd with radius 2 */
@@ -61,8 +124,8 @@ TEST_F(GridTest, TwoParticlesInDisc) {
 
 	/* radius = 2: both particles are inside the disc */
 	Point ds = getDiscSpeed(0, 2);
-
-	ASSERT_TRUE(fabs(ds.length() - sqrt(8.0)) < 1e-7) << "expected disc speed is sqrt(8)" <<
+	
+	ASSERT_TRUE(speedEqual(ds, sqrt(8.0) / 2)) << "expected disc speed is sqrt(8)" <<
 		", actual value is " << ds.length();
 }
 
@@ -82,7 +145,7 @@ TEST_F(GridTest, OneInAndOneOut) {
 
 	Point ds = getDiscSpeed(0, 2);
 
-	ASSERT_TRUE(fabs(ds.length() - sqrt(2 * 0.5 * 0.5)) < 1e-7) << "expected disc speed is speed of 2nd particle";
+	ASSERT_TRUE(speedEqual(ds, sqrt(2 * 0.5 * 0.5))) << "expected disc speed is speed of 2nd particle";
 }
 
 /**
@@ -100,7 +163,7 @@ TEST_F(GridTest, OneInAndOneOut) {
 
  	Point ds = getDiscSpeed(0, 2);
 
- 	ASSERT_TRUE(fabs(ds.length() - 5) < 1e-7) << "expected disc speed is speed of the 2nd particle" <<
+ 	ASSERT_TRUE(speedEqual(ds, 5)) << "expected disc speed is speed of the 2nd particle" <<
  		", actually it's " << ds.length();
  }
 
@@ -122,8 +185,7 @@ TEST_F(GridTest, OneInAndOneOut) {
  	addParticle(6, side - 1, 10, 5);	/* huge speed */
 
  	Point ds = getDiscSpeed(0, 2);
-
- 	ASSERT_TRUE(fabs(ds.length() - 5) < 1e-7) << "expected disc speed is speed of the 2nd particle" <<
+ 	ASSERT_TRUE(speedEqual(ds, 5)) << "expected disc speed is speed of the 2nd particle" <<
  		", actually it's " << ds.length();
  }
 
@@ -146,8 +208,10 @@ TEST_F(GridTest, DiscContainsCorner) {
 	addParticle(12 - side, 12 - side, 200, 100);
 
 	Point ds = getDiscSpeed(0, 3);
+	ASSERT_TRUE(speedEqual(ds, 5 / 2.0)) << "expected disc speed is sum of 3rd and 4th particles velocities";
 
-	ASSERT_TRUE(fabs(ds.length() - 5) < 1e-7) << "expected disc speed is sum of 3rd and 4th particles velocities";
+	Point dsn = getDiscSpeedNaively(0, 3);
+	ASSERT_TRUE(speedEqual(ds - dsn, 0)) << "expected the same result";
 }
 
 /**
@@ -169,7 +233,7 @@ TEST_F(GridTest, TrickySmallDisc) {
 
 	Point ds = getDiscSpeed(0, radius);
 
-	ASSERT_TRUE(fabs(ds.length() - 5) < 1e-7) << "expected disc speed is speed of the 2nd particle" <<
+	ASSERT_TRUE(speedEqual(ds, 5)) << "expected disc speed is speed of the 2nd particle" <<
 		", actual value is " << ds.length();
 }
 
@@ -192,6 +256,168 @@ TEST_F(GridTest, TrickyVerticalCase) {
 
 	Point ds = getDiscSpeed(0, radius);
 
-	ASSERT_TRUE(fabs(ds.length() - 10) < 1e-7) << "expected disc speed is speed of the 2nd particle" << 
+	ASSERT_TRUE(speedEqual(ds, 10)) << "expected disc speed is speed of the 2nd particle" << 
 		", actual value is " << ds.length();
+}
+
+/**
+ * 1st particle is motionless, while 2nd particle is in disc. In the next moment
+ *  2nd particle leaves disc.
+ */
+TEST_F(GridTest, OneStepOut) {
+	addParticle(2, 2, 0, 0);
+	addParticle(2, 2.5, 0, 1);
+
+	Point ds = getDiscSpeed(0, 1);
+
+	ASSERT_TRUE(fabs(ds.length() - 1) < 1e-7) << "expected non-zero speed";
+
+	evolve();
+
+	ds = getDiscSpeed(0, 1);
+
+	ASSERT_TRUE(speedEqual(ds, 0)) << "expected zero speed, but actually it's " <<
+		ds.length();
+}
+
+/**
+ * moment 0: 2nd inside, 3rd outside
+ * moment 1: still 2nd inside, 3rd outside
+ * moment 2: 2nd outside, 3rd still outside
+ * moment 3: 2nd outside, 3rd inside
+ */
+TEST_F(GridTest, InAndOut) {
+	addParticle(1, 1, 0, 0);
+	addParticle(1.5, 1.45, -0.5, 0.5);
+	addParticle(2, side - 1.05, -0.5, 0.5);
+
+	double speedOfOne = Point(-0.5, 0.5).length();
+
+	Point ds = getDiscSpeed(0, 1);
+	ASSERT_TRUE(speedEqual(ds, speedOfOne)) <<
+		"moment0: expected one particle in disc";
+
+	evolve();
+	ds = getDiscSpeed(0, 1);
+	ASSERT_TRUE(speedEqual(ds, speedOfOne)) <<
+		"moment1: expected one particle in disc";
+
+	evolve();
+	ds = getDiscSpeed(0, 1);
+	ASSERT_TRUE(speedEqual(ds, 0)) <<
+		"moment2: expected no particles in disc";
+
+	evolve();
+	ds = getDiscSpeed(0, 1);
+	ASSERT_TRUE(speedEqual(ds, speedOfOne)) <<
+		"moment3: expected one particle in disc" <<
+		", actual speed of disc is " << ds.length();
+}
+
+/* Some static randomized test w/ small number of particles */
+TEST_F(GridTest, SmallStaticRandom) {
+	srand(41);
+	int amount = 24;
+
+	/* seeding */
+	for (int i = 0; i < amount; ++i) {
+		addParticle(rnd_xy(), rnd_xy(), rnd_v(), rnd_v());
+	}
+
+	for (int i = 0; i < amount; ++i) {
+		Point s1 = getDiscSpeed(i, 3.3);
+		Point s2 = getDiscSpeedNaively(i, 3.3);
+		ASSERT_TRUE(speedEqual(s1 - s2, 0)) << "expected equality w/ dif.approaches " <<
+			"for particle#" << i;
+	}
+}
+
+/* Randomized test set w/ small amount of particles, but w/ some observation in time */
+TEST_F(GridTest, SmallDynamicRandom) {
+	srand(42);
+	int amount = 25;
+
+	/* seeding */
+	for (int i = 0; i < amount; ++i) {
+		addParticle(rnd_xy(), rnd_xy(), rnd_v(), rnd_v());
+	}
+
+	for (int it = 0; it < 30; ++it) {
+		for (int i = 0; i < amount; ++i) {
+			Point s1 = getDiscSpeed(i, 4.1);
+			int found1 = grid->particlesInDisc();
+			Point s2 = getDiscSpeedNaively(i, 4.1);
+			int found2 = found_particles;
+			buffer[0] = '(';
+			s1.to_string(buffer + 1, ',', ')');
+			std::string s1_print = std::string(buffer);
+			s2.to_string(buffer + 1, ',', ')');
+			std::string s2_print = std::string(buffer);
+			if (!speedEqual(s1 - s2, 0)) {
+				grid->dump_grid("grid-dump.txt");
+				FILE *dump = fopen("dump.txt", "wt");
+				for (int j = 0; j < amount; ++j) {
+					fprintf(dump, "%lf %lf\n", particles[j]->get_x(), particles[j]->get_y());
+				}
+				fclose(dump);
+				dump = fopen("grid-found.txt", "wt");
+				std::vector<int> list1 = grid->getFoundParticles();
+				sort(list1.begin(), list1.end());
+				printf("grid-found: ");
+				for (int j = 0; j < (int) list1.size(); ++j) {
+					int id = list1[j];
+					printf("%d ", id);
+					fprintf(dump, "%lf %lf\n", particles[id]->get_x(), particles[id]->get_y());
+				}
+				puts("");
+				fclose(dump);
+				dump = fopen("naive-found.txt", "wt");
+				sort(found_list.begin(), found_list.end());
+				printf("naive-found: ");
+				for (int j = 0; j < (int) found_list.size(); ++j) {
+					int id = found_list[j];
+					printf("%d ", id);
+					fprintf(dump, "%lf %lf\n", particles[id]->get_x(), particles[id]->get_y());
+				}
+				puts("");
+				fclose(dump);
+				puts("dumped");
+				printf("center at (%lf, %lf\n", particles[i]->get_x(), particles[i]->get_y());
+			}
+			ASSERT_TRUE(speedEqual(s1 - s2, 0)) << "expected equality" <<
+				" at it = " << it << ", i = " << i << ", but s1 is " <<
+				s1_print << ", s2 is " << s2_print << "; grid found " << found1 <<
+				" particles and naive method found " << found2 << " particles";
+		}
+		evolve();
+	}
+}
+
+/* Huge randomized test during proper time */
+TEST_F(GridTest, LargeDynamicRandom) {
+	srand(42);
+	int amount = 10000;
+
+	/* seeding */
+	for (int i = 0; i < amount; ++i) {
+		addParticle(rnd_xy(), rnd_xy(), rnd_v(), rnd_v());
+	}
+
+	for (int it = 0; it < 10; ++it) {
+		if (it & 1) {
+			printf("#");
+			fflush(stdout);
+		}
+		for (int i = 0; i < amount; ++i) {
+			Point s1 = getDiscSpeedNaively(i, 2.02);
+			/*Point s2 = getDiscSpeed(i, 2.02);
+			/*
+			ASSERT_TRUE(speedEqual(s1 - s2, 0)) << "expected equality " <<
+				" at it = " << it << ", i = " << i;
+				*/
+		}
+		evolve();
+	}
+	puts("");
+	fflush(stdout);
 }
