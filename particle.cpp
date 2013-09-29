@@ -21,7 +21,7 @@ double Particle::get_y() const
 	return y;
 }
 
-const int Particle::get_id() const
+int Particle::get_id() const
 {
 	return id;
 }

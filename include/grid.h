@@ -32,7 +32,6 @@ public:
 
 	Point get_disc_speed(const Particle &particle, double r2);
 	int particlesInDisc() const;
-	const std::vector<int> &getFoundParticles() const;
 	void dump_grid(const char *file_name);
 private:
 	/* spatial sizes of area under grid */
@@ -86,10 +85,6 @@ private:
 	const Point get_cell_speed(Particle *head,
 		double cx, double cy, double r2);
 	const Point &get_particle_speed(const Particle *particle) const;
-
-	/* testing part */
-#warning	"if not testing, then remove testing part"
-	std::vector<int> found_list;
 };
 
 #endif /* __SSU_KMY_GRID_H_ */

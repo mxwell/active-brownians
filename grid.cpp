@@ -62,27 +62,12 @@ void Grid::move(Particle *particle, double nx, double ny)
 	int cell_y = (int) (particle->get_y() / cell_ysize);
 	particle->move_to(nx, ny);
 
+	/* NOTE: be sure cell_n(x/y) not exceed (x/y)cells*/
 	int cell_nx = (int) (nx / cell_xsize);
 	int cell_ny = (int) (ny / cell_ysize);
 
 	if (cell_x == cell_nx && cell_y == cell_ny)
 		return;
-
-#define correctness(num, rlim) 	(0 <= (num) && (num) < (rlim))
-	if (!correctness(cell_x, xcells)) {
-		printf("wrong cell_x: %d\n", cell_x);
-	}
-	if (!correctness(cell_y, ycells)) {
-		printf("wrong cell_y: %d\n", cell_y);
-	}
-	if (!correctness(cell_nx, xcells)) {
-		printf("wrong cell_nx: %d\n", cell_nx);
-		printf("id = %d\n", particle->get_id());
-	}
-	if (!correctness(cell_ny, ycells)) {
-		printf("wrong cell_ny: %d\n", cell_ny);
-	}
-	fflush(stdout);
 
 	if (particle->prev != NULL)
 		particle->prev->next = particle->next;
@@ -150,7 +135,6 @@ const Point Grid::get_cell_speed(Particle *head,
 		if (square(x) + square(y) < r2) {
 			v = v + get_particle_speed(head);
 			++found_particles;
-			found_list.push_back(head->get_id());
 		}
 		head = head->next;
 	}
@@ -176,7 +160,6 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 	centers.push(std::make_pair(cx, cy));
 
 	found_particles = 0;
-	found_list.clear();
 	Point v = get_cell_speed(cells[cellx][celly], cx, cy, r2);
 	set_used(cellx, celly, time_cnt);
 	while (!q.empty()) {
@@ -210,43 +193,9 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 			set_used(nx, ny, time_cnt);
 			q.push(std::make_pair(nx, ny));
 			centers.push(std::make_pair(ncx, ncy));
-			/*printf("add speed of cell at (%d, %d)\n", nx, ny);
-			printf("center at (%lf, %lf), r2 = %lf\n", ncx, ncy, r2);
-			fflush(stdout);*/
 			v = v + get_cell_speed(cells[nx][ny], ncx, ncy, r2);
 		}
 	}
-	/*
-	for (int i = 0; i < xcells; ++i) {
-		bool printStarted = false;
-		int rangeStarted = -1;
-		for (int j = 0; j <= ycells; ++j) {
-			bool isUsed = false;
-			if (j < ycells) {
-				isUsed = get_used(i, j) == time_cnt;
-			}
-			if (isUsed) {
-				if (rangeStarted == -1)
-					rangeStarted = j;
-			} else {
-				if (rangeStarted != -1) {
-					if (!printStarted) {
-						printf("for x = %d:", i);
-						printStarted = true;
-					}
-					if (rangeStarted + 1 < j)
-						printf(" [%d, %d]", rangeStarted, j - 1);
-					else
-						printf(" [%d]", rangeStarted);
-					rangeStarted = -1;
-				}
-			}
-		}
-		if (printStarted)
-			puts("");
-	}
-	fflush(stdout);
-	*/
 	++time_cnt;
 	if (found_particles <= 1)
 		return Point(0, 0);
@@ -255,10 +204,6 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 
 int Grid::particlesInDisc() const {
 	return found_particles > 0 ? found_particles - 1 : 0;
-}
-
-const std::vector<int> &Grid::getFoundParticles() const {
-	return found_list;
 }
 
 void Grid::dump_grid(const char *file_name)

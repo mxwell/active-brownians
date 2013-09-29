@@ -1,7 +1,7 @@
 #include <point.h>
 #include <cassert>
 
-template<typename T> static inline T sqr(const T& x)
+template<typename T> static inline T sqr(const T &x)
 {
 	return (x) * (x);
 }
@@ -36,7 +36,7 @@ const Point operator/(const Point& p, const ld &divisor)
 	return Point(p._x / divisor, p._y / divisor);
 }
 
-const ld Point::length() const
+ld Point::length() const
 {
 	return sqrt(sqr(_x) + sqr(_y));
 }
@@ -62,12 +62,12 @@ const Point Point::get_normal() const
 	return Point(-_y, _x);
 }
 
-const ld Point::distance_to_vertical(const ld& vertical) const
+ld Point::distance_to_vertical(const ld& vertical) const
 {
 	return fabs(_x - vertical);
 }
 
-const ld Point::distance_to_horizontal(const ld& horizontal) const
+ld Point::distance_to_horizontal(const ld& horizontal) const
 {
 	return fabs(_y - horizontal);
 }

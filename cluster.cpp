@@ -210,4 +210,3 @@ ld Cluster::get_measurement() const
 		return -1.0;
 	return avg_speed / avg_denominator;
 }
-

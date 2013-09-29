@@ -17,7 +17,7 @@ public:
 	/*int get_id() const;*/
 	double get_x() const;
 	double get_y() const;
-	const int get_id() const;
+	int get_id() const;
 
 	void move_to(const double &nx,
 				 const double &ny);

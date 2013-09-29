@@ -345,49 +345,11 @@ TEST_F(GridTest, SmallDynamicRandom) {
 	for (int it = 0; it < 30; ++it) {
 		for (int i = 0; i < amount; ++i) {
 			Point s1 = getDiscSpeed(i, 4.1);
-			int found1 = grid->particlesInDisc();
 			Point s2 = getDiscSpeedNaively(i, 4.1);
-			int found2 = found_particles;
-			buffer[0] = '(';
-			s1.to_string(buffer + 1, ',', ')');
-			std::string s1_print = std::string(buffer);
-			s2.to_string(buffer + 1, ',', ')');
-			std::string s2_print = std::string(buffer);
-			if (!speedEqual(s1 - s2, 0)) {
-				grid->dump_grid("grid-dump.txt");
-				FILE *dump = fopen("dump.txt", "wt");
-				for (int j = 0; j < amount; ++j) {
-					fprintf(dump, "%lf %lf\n", particles[j]->get_x(), particles[j]->get_y());
-				}
-				fclose(dump);
-				dump = fopen("grid-found.txt", "wt");
-				std::vector<int> list1 = grid->getFoundParticles();
-				sort(list1.begin(), list1.end());
-				printf("grid-found: ");
-				for (int j = 0; j < (int) list1.size(); ++j) {
-					int id = list1[j];
-					printf("%d ", id);
-					fprintf(dump, "%lf %lf\n", particles[id]->get_x(), particles[id]->get_y());
-				}
-				puts("");
-				fclose(dump);
-				dump = fopen("naive-found.txt", "wt");
-				sort(found_list.begin(), found_list.end());
-				printf("naive-found: ");
-				for (int j = 0; j < (int) found_list.size(); ++j) {
-					int id = found_list[j];
-					printf("%d ", id);
-					fprintf(dump, "%lf %lf\n", particles[id]->get_x(), particles[id]->get_y());
-				}
-				puts("");
-				fclose(dump);
-				puts("dumped");
-				printf("center at (%lf, %lf\n", particles[i]->get_x(), particles[i]->get_y());
-			}
 			ASSERT_TRUE(speedEqual(s1 - s2, 0)) << "expected equality" <<
-				" at it = " << it << ", i = " << i << ", but s1 is " <<
-				s1_print << ", s2 is " << s2_print << "; grid found " << found1 <<
-				" particles and naive method found " << found2 << " particles";
+				" at it = " << it << ", i = " << i << ", " <<
+				"but |s1| is " << s1.length() << ", "
+				"|s2| is " << s2.length();
 		}
 		evolve();
 	}
@@ -396,28 +358,21 @@ TEST_F(GridTest, SmallDynamicRandom) {
 /* Huge randomized test during proper time */
 TEST_F(GridTest, LargeDynamicRandom) {
 	srand(42);
-	int amount = 10000;
+	int amount = 500;
 
 	/* seeding */
 	for (int i = 0; i < amount; ++i) {
 		addParticle(rnd_xy(), rnd_xy(), rnd_v(), rnd_v());
 	}
 
-	for (int it = 0; it < 10; ++it) {
-		if (it & 1) {
-			printf("#");
-			fflush(stdout);
-		}
+	for (int it = 0; it < 30; ++it) {
 		for (int i = 0; i < amount; ++i) {
 			Point s1 = getDiscSpeedNaively(i, 2.02);
-			/*Point s2 = getDiscSpeed(i, 2.02);
-			/*
+			Point s2 = getDiscSpeed(i, 2.02);
 			ASSERT_TRUE(speedEqual(s1 - s2, 0)) << "expected equality " <<
 				" at it = " << it << ", i = " << i;
-				*/
 		}
 		evolve();
 	}
-	puts("");
 	fflush(stdout);
 }
