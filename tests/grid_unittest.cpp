@@ -4,8 +4,6 @@
 #include "grid.h"
 #include "gtest/gtest.h"
 
-const static double EPS_FOR_FP_NUMBERS = EPS;
-
 class GridTest : public ::testing::Test {
 protected:
 	virtual void SetUp() {
@@ -67,7 +65,6 @@ protected:
 	}
 
 	void evolve() {
-		fflush(stdout);
 		for (size_t i = 0; i < particles.size(); ++i) {
 			Particle *p = particles[i];
 			Point next_pos = velocities[i] + Point(p->get_x(), p->get_y());
@@ -77,7 +74,7 @@ protected:
 	}
 
 	bool speedEqual(const Point &speed, double num) {
-		return fabs(speed.length() - num) < EPS_FOR_FP_NUMBERS;
+		return fabs(speed.length() - num) < EPS;
 	}
 
 	double rnd_xy() {
@@ -270,7 +267,7 @@ TEST_F(GridTest, OneStepOut) {
 
 	Point ds = getDiscSpeed(0, 1);
 
-	ASSERT_TRUE(fabs(ds.length() - 1) < 1e-7) << "expected non-zero speed";
+	ASSERT_TRUE(speedEqual(ds, 1)) << "expected non-zero speed";
 
 	evolve();
 
@@ -374,5 +371,4 @@ TEST_F(GridTest, LargeDynamicRandom) {
 		}
 		evolve();
 	}
-	fflush(stdout);
 }
