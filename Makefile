@@ -2,7 +2,8 @@ PROG		= simulation
 LDFLAGS 	+= -lm -lstdc++ -llua5.1
 CPPFLAGS	+= -std=c++0x -Wall -Werror -Iinclude -I/usr/include -lm -lstdc++ -llua5.1
 
-OBJFILES 	= simulation.o gaussian_gen.o point.o cluster.o luautils.o progressbar.o
+OBJFILES 	= simulation.o gaussian_gen.o point.o cluster.o particle.o grid.o \
+			luautils.o progressbar.o
 
 all: $(PROG)
 
@@ -20,6 +21,12 @@ point.o: point.cpp include/point.h
 
 
 cluster.o: cluster.cpp include/cluster.h
+
+
+particle.o: particle.cpp include/particle.h
+
+
+grid.o: grid.cpp include/grid.h
 
 
 luautils.o: luautils.cpp include/luautils.h

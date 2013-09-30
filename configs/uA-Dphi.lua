@@ -4,9 +4,10 @@ integration = {
 		observation 	= 0
 	},
 	time_step = 0.005,
+	use_grid = true,
 }
 model = {
-	number_of_particles = 100,
+	number_of_particles = 10000,
 	rectangle_size = 10,
 	local_visibility = true,
 	-- if @local_visibility is true, then it'll be visibility radius

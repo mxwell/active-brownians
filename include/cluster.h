@@ -5,6 +5,7 @@
 #include <cassert>
 #include <vector>
 #include "point.h"
+#include "grid.h"
 #include "gaussian_gen.h"
 
 typedef Point (*speed_integrator)(Point, Point);
@@ -20,7 +21,7 @@ class Cluster
 public:
 	Cluster(const int &N, const ld &L,
 		bool local_visibility,
-		const ld &epsilon = 0);
+		const ld &epsilon = 0, bool to_use_grid = false);
 	~Cluster();
 
 	void reinit(const int &N, const ld &L,
@@ -39,6 +40,7 @@ public:
 	ld get_measurement() const;
 
 	ld get_avg_speed_val() const;
+	void use_grid(bool yes);
 private:
 	int N;
 	ld L;
@@ -55,8 +57,23 @@ private:
 	ld avg_speed;
 	int avg_denominator;
 
-	Point get_mean_field_speed(const Point& particle);
+	Point get_mean_field_speed(int particleId);
+	Point get_disc_speed_with_grid(int particleId);
 	Point get_avg_speed() const;
+
+	std::vector<Point> &get_cur_coordinates();
+	std::vector<Point> &get_next_coordinates();
+	std::vector<Point> &get_cur_velocities();
+	std::vector<Point> &get_next_velocities();
+	void swap_states();
+	void update_grid();
+
+	Grid *grid;
+	bool grid_updated;
+	std::vector<Particle *> particles;
+
+	int particles_found_naive;
+	bool calculate_with_grid;
 };
 
 #endif /* __SSU_KMY_CLUSTER_H_ */

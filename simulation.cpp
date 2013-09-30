@@ -25,6 +25,7 @@ namespace params {
 	 */
 	bool local_visibility = true;
 	ld epsilon = 1;
+	bool use_grid = false;
 	ld mu = 2.5;
 	ld D_E = 0.05;
 	ld D_v = 0;
@@ -101,6 +102,11 @@ namespace params {
 			if (lua_numberexpr(L, "model.epsilon", &epsilon) == 0)
 				return -1;
 			printf("local visibility with epsilon: %lf\n", epsilon);
+			use_grid = lua_boolexpr(L, "integration.use_grid");
+			if (use_grid)
+				puts("speed in disc will be calculated with grid (spatial partition)");
+			else
+				puts("speed in disc will be calculated with straightforward approach");
 		} else {
 			printf("global visibility\n");
 		}
@@ -225,7 +231,8 @@ int main(int argc, char const *argv[])
 	}
 	ProgressBar progress;
 	Cluster cluster(params::N, params::L_size,
-			params::local_visibility, params::epsilon);
+			params::local_visibility, params::epsilon,
+			params::use_grid);
 	char output_name[128];
 	generate_output_name(output_name);
 	printf("log will be put to '%s'\n", output_name);

@@ -72,7 +72,7 @@ ld Point::distance_to_horizontal(const ld& horizontal) const
 	return fabs(_y - horizontal);
 }
 
-void Point::to_string(char *string, const char delim, const char tail)
+void Point::to_string(char *string, const char delim, const char tail) const
 {
 	sprintf(string, "%lf%c%lf%c", _x, delim, _y, tail);
 }

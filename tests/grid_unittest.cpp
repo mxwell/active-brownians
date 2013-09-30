@@ -29,7 +29,7 @@ protected:
 			grid->update_for_search(&velocities);
 			gridPrepared = true;
 		}
-		return grid->get_disc_speed(*(particles[particleId]), radius * radius);
+		return grid->get_disc_speed(*(particles[particleId]), radius);
 	}
 
 	Point getDiscSpeedNaively(int centerId, double radius) {

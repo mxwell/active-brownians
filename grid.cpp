@@ -62,6 +62,15 @@ void Grid::move(Particle *particle, double nx, double ny)
 	int cell_y = (int) (particle->get_y() / cell_ysize);
 	particle->move_to(nx, ny);
 
+	if (!(0 <= cell_x && cell_x < xcells)) {
+		printf("wrong cell_x: %d\n", cell_x);
+		fflush(stdout);
+	}
+	if (!(0 <= cell_y && cell_y < ycells)) {
+		printf("wrong cell_y: %d\n", cell_y);
+		fflush(stdout);
+	}
+
 	/* NOTE: be sure cell_n(x/y) not exceed (x/y)cells*/
 	int cell_nx = (int) (nx / cell_xsize);
 	int cell_ny = (int) (ny / cell_ysize);
@@ -146,8 +155,9 @@ const Point &Grid::get_particle_speed(const Particle *particle) const
 	return (*velocities)[particle->get_id()];
 }
 
-Point Grid::get_disc_speed(const Particle &particle, double r2)
+Point Grid::get_disc_speed(const Particle &particle, double radius)
 {
+	double r2 = square(radius);
 	double cx = particle.get_x();
 	double cy = particle.get_y();
 
@@ -202,13 +212,14 @@ Point Grid::get_disc_speed(const Particle &particle, double r2)
 	return (v - get_particle_speed(&particle)) / (found_particles - 1);
 }
 
-int Grid::particlesInDisc() const {
+int Grid::particles_in_disc() const {
 	return found_particles > 0 ? found_particles - 1 : 0;
 }
 
 void Grid::dump_grid(const char *file_name)
 {
 	FILE *dump = fopen(file_name, "wt");
+	char buf[128];
 	for (int i = 0; i < xcells; ++i) {
 		for (int j = 0; j < ycells; ++j) {
 			if (cells[i][j] != NULL) {
@@ -216,7 +227,10 @@ void Grid::dump_grid(const char *file_name)
 					i * cell_xsize, j * cell_ysize);
 				Particle *head = cells[i][j];
 				while (head != NULL) {
-					fprintf(dump, "- #%d\n", head->get_id());
+					buf[0] = '(';
+					get_particle_speed(head).to_string(buf + 1, ',', ')');
+					fprintf(dump, "- #%d\tw/ speed\t%s @(%lf,%lf)\n",
+						head->get_id(), buf, head->get_x(), head->get_y());
 					head = head->next;
 				}
 			}

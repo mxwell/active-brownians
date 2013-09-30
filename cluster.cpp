@@ -1,7 +1,10 @@
 #include "cluster.h"
 
-Cluster::Cluster(const int& N, const ld& L, bool local_visibility, const ld& epsilon)
+Cluster::Cluster(const int& N, const ld& L, bool local_visibility, const ld& epsilon,
+	bool to_use_grid)
 {
+	grid = nullptr;
+	calculate_with_grid = to_use_grid;
 	reinit(N, L, local_visibility, epsilon);
 }
 
@@ -11,6 +14,11 @@ Cluster::~Cluster()
 		rs[i].clear();
 		vs[i].clear();
 	}
+}
+
+void Cluster::use_grid(bool yes)
+{
+	calculate_with_grid = yes;
 }
 
 void Cluster::reinit(const int &N_arg, const ld &L_arg,
@@ -28,6 +36,14 @@ void Cluster::reinit(const int &N_arg, const ld &L_arg,
 	next_id = 1;
 	seeded = false;
 	measurement = false;
+	if (!calculate_with_grid)
+		return;
+	int cells = 5 * L / epsilon;
+	if (grid != nullptr)
+		delete grid;
+	grid = new Grid(L, L, cells, cells);
+	grid_updated = false;
+	particles.clear();
 }
 
 void Cluster::seed_randomly(const ld& speed_lowest,
@@ -35,8 +51,8 @@ void Cluster::seed_randomly(const ld& speed_lowest,
 {
 	const ld center = 0.5 * L;
 	const ld magnitude = 0.1 * L;
-	std::vector<Point> &r = rs[next_id];
-	std::vector<Point> &v = vs[next_id];
+	std::vector<Point> &r = get_next_coordinates();
+	std::vector<Point> &v = get_next_velocities();
 
 	auto gauss = [] () {
 		return GaussianGen::Instance().value(default_gen);
@@ -57,14 +73,14 @@ void Cluster::seed_randomly(const ld& speed_lowest,
 		*it = Point(vx, vy);
 	}
 	seeded = true;
-	std::swap(cur_id, next_id);
+	swap_states();
 }
 
 void Cluster::seed_uniformly(const ld &speed_lowest,
 			     const ld &speed_highest)
 {
-	std::vector<Point> &r = rs[next_id];
-	std::vector<Point> &v = vs[next_id];
+	std::vector<Point> &r = get_next_coordinates();
+	std::vector<Point> &v = get_next_velocities();
 	auto ran3 = [] () { return GaussianGen::Instance().ran3_value(); };
 	for (auto it = r.begin(); it != r.end(); ++it) {
 		ld x = 0.01 + ran3() * (L - 0.02);
@@ -79,19 +95,69 @@ void Cluster::seed_uniformly(const ld &speed_lowest,
 		*it = Point(vx, vy);
 	}
 	seeded = true;
+	swap_states();
+}
+
+void Cluster::update_grid()
+{
+	std::vector<Point> &r = get_cur_coordinates();
+	std::vector<Point> &v = get_cur_velocities();
+	size_t amount = r.size();
+	if (particles.empty()) {
+		particles.resize(amount);
+		for (size_t i = 0; i < amount; ++i) {
+			Particle *particle = new Particle(i, r[i]._x, r[i]._y);
+			particles[i] = particle;
+			grid->add(particle);
+		}
+	} else {
+		for (size_t i = 0; i < amount; ++i)
+			grid->move(particles[i], r[i]);
+	}
+	grid->update_for_search(&v);
+	grid_updated = true;
+}
+
+std::vector<Point> &Cluster::get_cur_coordinates()
+{
+	return rs[cur_id];
+}
+
+std::vector<Point> &Cluster::get_next_coordinates()
+{
+	return rs[next_id];
+}
+
+std::vector<Point> &Cluster::get_cur_velocities()
+{
+	return vs[cur_id];
+}
+
+std::vector<Point> &Cluster::get_next_velocities()
+{
+	return vs[next_id];
+}
+
+void Cluster::swap_states()
+{
 	std::swap(cur_id, next_id);
+	grid_updated = false;
 }
 
 void Cluster::evolve(speed_integrator speed_step,
 		position_integrator position_step)
 {
-	std::vector<Point> &r = rs[cur_id];
-	std::vector<Point> &rnext = rs[next_id];
-	std::vector<Point> &v = vs[cur_id];
-	std::vector<Point> &vnext = vs[next_id];
+	std::vector<Point> &r = get_cur_coordinates();
+	std::vector<Point> &rnext = get_next_coordinates();
+	std::vector<Point> &v = get_cur_velocities();
+	std::vector<Point> &vnext = get_next_velocities();
 	if (local_visibility) {
 		for (int i = 0; i < N; ++i) {
-			Point u_A = get_mean_field_speed(r[i]);
+			Point u_A;
+			if (calculate_with_grid)
+				u_A = get_disc_speed_with_grid(i);
+			else
+				u_A = get_mean_field_speed(i);
 			rnext[i] = position_step(r[i], v[i]);
 			rnext[i].normalize_to_rect(0, L, 0, L);
 			vnext[i] = speed_step(v[i], u_A);
@@ -108,11 +174,12 @@ void Cluster::evolve(speed_integrator speed_step,
 			vnext[i] = speed_step(v[i], u_A);
 		}
 	}
-	std::swap(cur_id, next_id);
+	swap_states();
 }
 
-Point Cluster::get_mean_field_speed(const Point& particle)
+Point Cluster::get_mean_field_speed(int particleId)
 {
+	Point particle = get_cur_coordinates()[particleId];
 	Point virtuals[8];
 	int virtuals_count = 0;
 	virtuals[virtuals_count++] = particle;
@@ -138,10 +205,12 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 	assert(virtuals_count < 5);
 
 	Point field_speed(0, 0);
-	int particles = 0;
-	std::vector<Point> &r = rs[cur_id];
-	std::vector<Point> &v = vs[cur_id];
+	particles_found_naive = 0;
+	std::vector<Point> &r = get_cur_coordinates();
+	std::vector<Point> &v = get_cur_velocities();
 	for (int i = 0; i < N; ++i) {
+		if (i == particleId)
+			continue;
 		bool in_field = false;
 		Point& p = r[i];
 		for (int j = 0; j < virtuals_count; ++j) {
@@ -152,10 +221,20 @@ Point Cluster::get_mean_field_speed(const Point& particle)
 		}
 		if (!in_field)
 			continue;
-		++particles;
+		++particles_found_naive;
 		field_speed = field_speed + v[i];
 	}
-	return field_speed * (1. / particles);
+	if (particles_found_naive == 0)
+		return field_speed;
+	return field_speed / particles_found_naive;
+}
+
+Point Cluster::get_disc_speed_with_grid(int particleId)
+{
+	if (!grid_updated)
+		update_grid();
+
+	return grid->get_disc_speed(*(particles[particleId]), epsilon);
 }
 
 Point Cluster::get_avg_speed() const

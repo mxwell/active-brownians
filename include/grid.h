@@ -30,8 +30,8 @@ public:
 	void move(Particle *particle, double nx, double ny);
 	void move(Particle *particle, Point &next_pos);
 
-	Point get_disc_speed(const Particle &particle, double r2);
-	int particlesInDisc() const;
+	Point get_disc_speed(const Particle &particle, double radius);
+	int particles_in_disc() const;
 	void dump_grid(const char *file_name);
 private:
 	/* spatial sizes of area under grid */
