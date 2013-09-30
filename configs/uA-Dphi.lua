@@ -1,7 +1,7 @@
 integration = {
 	iterations = {
-		relaxation 	= 10 * 1000 * 1000,
-		observation 	= 0
+		relaxation 	= 1000 * 1000,
+		observation  = 100 * 1000
 	},
 	time_step = 0.005,
 	use_grid = true,

@@ -162,6 +162,10 @@ void Cluster::evolve(speed_integrator speed_step,
 			rnext[i].normalize_to_rect(0, L, 0, L);
 			vnext[i] = speed_step(v[i], u_A);
 		}
+		if (measurement) {
+			avg_speed += get_avg_speed().length();
+			++avg_denominator;
+		}
 	} else {
 		Point u_A = get_avg_speed();
 		if (measurement) {
