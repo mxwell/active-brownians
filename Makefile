@@ -1,6 +1,11 @@
 PROG		= simulation
-LDFLAGS 	+= -lm -lstdc++ -llua5.1
-CPPFLAGS	+= -std=c++0x -Wall -Werror -Iinclude -I/usr/include -lm -lstdc++ -llua5.1
+ifeq ($(MACHINE),s9)
+	LDFLAGS		+= -lm -lstdc++ -llua
+	CPPFLAGS 	+= -std=c++0x -Wall -Werror -Iinclude -I/home/khairulinme/nsci/packages/lua5.1/lua-5.1.5/ -lm -lstdc++ -llua
+else
+	LDFLAGS		+= -lm -lstdc++ -llua5.1
+	CPPFLAGS	+= -std=c++0x -Wall -Werror -Iinclude -I/usr/include -lm -lstdc++ -llua5.1
+endif
 
 OBJFILES 	= simulation.o gaussian_gen.o point.o cluster.o particle.o grid.o \
 			luautils.o progressbar.o
