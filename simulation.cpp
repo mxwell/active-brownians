@@ -236,43 +236,28 @@ int main(int argc, char const *argv[])
 	char output_name[128];
 	generate_output_name(output_name);
 	printf("log will be put to '%s'\n", output_name);
-	FILE *udphi = fopen(output_name, "wt");
-	if (udphi == NULL) {
-		err(EXIT_FAILURE, "can't open file to write\n");
+	FILE *out = fopen(output_name, "wt");
+	assert(out != NULL);
+	cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
+	puts("relaxation");
+	progress.start(params::relaxation_iterations);
+	for (int it = 0; it < params::relaxation_iterations; ++it) {
+		cluster.evolve(heun_speed, heun_position);
+		progress.check_and_move(it);
 	}
-	bool logarithmic = params::D_phi_log_step > 0;
-	for (ld d = params::D_phi_start; d <= params::D_phi_end + 1e-7;
-			/* see end of loop */) {
-		params::set_D_phi(d);
-		cluster.reinit(params::N, params::L_size,
-				params::local_visibility, params::epsilon);
-		cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
-		printf("relaxation");
-		progress.start(params::relaxation_iterations);
-		for (int it = 0; it < params::relaxation_iterations; ++it) {
-			cluster.evolve(heun_speed, heun_position);
-			progress.check_and_move(it);
-		}
-		progress.finish_successfully();
-		printf("observation");
-		cluster.start_speed_measurement();
-		progress.start(params::iterations);
-		for (int it = 0; it < params::iterations; ++it) {
-			cluster.evolve(heun_speed, heun_position);
-			progress.check_and_move(it);
-		}
-		progress.finish_successfully();
-		ld avg_speed = cluster.get_measurement();
-		printf("D_phi = %lf, avg.speed = %lf\n", params::D_phi, avg_speed);
-		fflush(stdout);
-		fprintf(udphi, "%lf\t%lf\n", params::D_phi, avg_speed);
-
-		if (logarithmic) {
-			d *= params::D_phi_log_step;
-		} else {
-			d += params::D_phi_step;
+	progress.finish_successfully();
+	puts("observation");
+	progress.start(params::iterations);
+	for (int it = 0; it < params::iterations; ++it) {
+		cluster.evolve(heun_speed, heun_position);
+		progress.check_and_move(it);
+		if ((it & 7) == 7) {
+			fprintf(out, "%lf %lf\n",
+				params::relaxation_iterations + it * params::h,
+				cluster.get_avg_speed_val());
 		}
 	}
-	fclose(udphi);
+	progress.finish_successfully();
+	fclose(out);
 	return 0;
 }
