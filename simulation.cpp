@@ -24,7 +24,13 @@ namespace params {
 	 * otherwise any particle can see any other particle
 	 */
 	bool local_visibility = true;
+	/* single value...*/
 	ld epsilon = 1;
+	/* ...or range if one investigate dependency on epsilon */
+	ld epsilon_start = 0.1;
+	ld epsilon_end = 1.0;
+	ld epsilon_step = 0.1;
+
 	bool use_grid = false;
 	ld mu = 2.5;
 	ld D_E = 0.05;
@@ -99,9 +105,20 @@ namespace params {
 		printf("L_size: %lf\n", L_size);
 		local_visibility = lua_boolexpr(L, "model.local_visibility");
 		if (local_visibility) {
-			if (lua_numberexpr(L, "model.epsilon", &epsilon) == 0)
+			if (lua_numberexpr(L, "model.epsilon.start", &epsilon_start) != 0) {
+				if (lua_numberexpr(L, "model.epsilon.finish", &epsilon_end) == 0)
+					return -1;
+				if (lua_numberexpr(L, "model.epsilon.step", &epsilon_step) == 0)
+					return -1;
+				printf("local visibility with epsilon in [%lf, %lf] with linear step %lf\n",
+					epsilon_start, epsilon_end, epsilon_step);
+				assert(epsilon_start < epsilon_end + EPS);
+			} else if (lua_numberexpr(L, "model.epsilon", &epsilon) != 0) {
+				printf("local visibility with epsilon %lf\n", epsilon);
+			} else {
+				puts("can't find any epsilon-related values");
 				return -1;
-			printf("local visibility with epsilon: %lf\n", epsilon);
+			}
 			use_grid = lua_boolexpr(L, "integration.use_grid");
 			if (use_grid)
 				puts("speed in disc will be calculated with grid (spatial partition)");
@@ -220,6 +237,49 @@ void generate_output_name(char *name)
 	sprintf(name, "cluster-%s.log", timestamp_buf);
 }
 
+void get_uA_of_eps(const char *file_name)
+{
+	printf("uA(eps) will be put to '%s'\n", file_name);
+	FILE *out = fopen(file_name, "wt");		
+	assert(out != NULL);
+	Cluster cluster(params::N, params::L_size, params::local_visibility,
+			params::epsilon, params::use_grid);
+	ProgressBar progress;
+	for (double eps = params::epsilon_start; eps < params::epsilon_end + EPS;
+				eps += params::epsilon_step) {
+		printf("current epsilon: %lf\n", eps);
+		cluster.reinit(params::N, params::L_size, params::local_visibility, eps);
+		cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
+		puts("  relaxation");
+		progress.start(params::relaxation_iterations);
+		for (int it = 0; it < params::relaxation_iterations; ++it) {
+			cluster.evolve(heun_speed, heun_position);
+			progress.check_and_move(it);
+		}
+		progress.finish_successfully();
+		puts("  observation");
+		progress.start(params::iterations);
+		double speed_min = 1e9;
+		double speed_max = -1.0;
+		double speed_sum = 0;
+		for (int it = 0; it < params::iterations; ++it) {
+			cluster.evolve(heun_speed, heun_position);
+			progress.check_and_move(it);
+			double val = cluster.get_avg_speed_val();
+			speed_min = min(speed_min, val);
+			speed_max = max(speed_max, val);
+			speed_sum += val;
+		}
+		progress.finish_successfully();
+		double speed_avg = speed_sum / params::iterations;
+		printf("epsilon %lf: speed: min %lf, max %lf, avg %lf\n", 
+			eps, speed_min, speed_max, speed_avg);
+		fprintf(out, "%lf   %lf %lf %lf\n",
+			eps, speed_min, speed_max, speed_avg);
+	}
+	fclose(out);
+}
+
 int main(int argc, char const *argv[])
 {
 	if (argc > 1) {
@@ -229,12 +289,15 @@ int main(int argc, char const *argv[])
 			return -1;
 		}
 	}
+	char output_name[128];
+	generate_output_name(output_name);
+	get_uA_of_eps(output_name);
+	return 0;
+
 	ProgressBar progress;
 	Cluster cluster(params::N, params::L_size,
 			params::local_visibility, params::epsilon,
 			params::use_grid);
-	char output_name[128];
-	generate_output_name(output_name);
 	printf("log will be put to '%s'\n", output_name);
 	FILE *out = fopen(output_name, "wt");
 	assert(out != NULL);
