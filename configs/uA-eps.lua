@@ -14,18 +14,18 @@ model = {
 	epsilon = {
 		start = 0.1,
 		finish = 0.3,
-		step = 0.1
+		log_step = math.pow(0.3 / 0.1, 1 / 4.0)
 	},
 	mu = 1.0,
 	noise_intensities = {
 		passive_noise = 0.01,
 		speed_noise = 0,
 		angular_noise = {
-			start 	= 0.024545664690001,
+			start 	= 0.01,
 			finish	= 0.50,
 			step	= 0.01,
 			-- if @log_step present, then @step will be ignored
-			log_step = math.pow(10 / 3.0, 1 / 6.0)
+			log_step = math.pow(0.5 / 0.01, 1 / 4.0)
 		}
 	},
 	speed = {

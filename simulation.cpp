@@ -30,6 +30,7 @@ namespace params {
 	ld epsilon_start = 0.1;
 	ld epsilon_end = 1.0;
 	ld epsilon_step = 0.1;
+	ld epsilon_log_step = -1;
 
 	bool use_grid = false;
 	ld mu = 2.5;
@@ -108,10 +109,21 @@ namespace params {
 			if (lua_numberexpr(L, "model.epsilon.start", &epsilon_start) != 0) {
 				if (lua_numberexpr(L, "model.epsilon.finish", &epsilon_end) == 0)
 					return -1;
-				if (lua_numberexpr(L, "model.epsilon.step", &epsilon_step) == 0)
-					return -1;
-				printf("local visibility with epsilon in [%lf, %lf] with linear step %lf\n",
-					epsilon_start, epsilon_end, epsilon_step);
+				if (lua_numberexpr(L, "model.epsilon.log_step", &epsilon_log_step) == 0) {
+					if (lua_numberexpr(L, "model.epsilon.step", &epsilon_step) == 0) {
+						puts("nor epsilon.step neither epsilon.log_step not found");
+						return -1;
+					}
+				} else {
+					epsilon_step = -1.0;
+				}
+				if (epsilon_step > -EPS) {
+					printf("local visibility with epsilon in [%lf, %lf] with linear step %lf\n",
+						epsilon_start, epsilon_end, epsilon_step);
+				} else {
+					printf("local visibility with epsilon in [%lf, %lf] with logarithmic step %lf\n",
+						epsilon_start, epsilon_end, epsilon_log_step);
+				}
 				assert(epsilon_start < epsilon_end + EPS);
 			} else if (lua_numberexpr(L, "model.epsilon", &epsilon) != 0) {
 				printf("local visibility with epsilon %lf\n", epsilon);
@@ -151,9 +163,10 @@ namespace params {
 						&D_phi_step) == 0) {
 				printf("nor @step neither @log_step not found\n");
 				return -1;
-			}
+			} 
 			printf("D_phi in [%lf, %lf] with linear step %lf\n", D_phi_start, D_phi_end, D_phi_step);
 		} else {
+			D_phi_step = -1.0;
 			printf("D_phi in [%lf, %lf] with logarithmic step %lf\n", D_phi_start, D_phi_end, D_phi_log_step);
 		}
 		set_D_phi(D_phi_start);
@@ -245,8 +258,7 @@ void get_uA_of_eps(const char *file_name)
 	Cluster cluster(params::N, params::L_size, params::local_visibility,
 			params::epsilon, params::use_grid);
 	ProgressBar progress;
-	for (double eps = params::epsilon_start; eps < params::epsilon_end + EPS;
-				eps += params::epsilon_step) {
+	for (double eps = params::epsilon_start; eps < params::epsilon_end + EPS; ) {
 		printf("current epsilon: %lf\n", eps);
 		cluster.reinit(params::N, params::L_size, params::local_visibility, eps);
 		cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
@@ -276,8 +288,27 @@ void get_uA_of_eps(const char *file_name)
 			eps, speed_min, speed_max, speed_avg);
 		fprintf(out, "%lf   %lf %lf %lf\n",
 			eps, speed_min, speed_max, speed_avg);
+		if (params::epsilon_step > -EPS)
+			eps += params::epsilon_step;
+		else
+			eps *= params::epsilon_log_step;
 	}
 	fclose(out);
+}
+
+void get_uA_of_eps_and_Dphi()
+{
+	char output_name[128];
+	for (double dphi = params::D_phi_start; dphi < params::D_phi_end + EPS; ) {
+		printf("== current D_phi %lf ==\n", dphi);
+		params::set_D_phi(dphi);
+		sprintf(output_name, "cluster-dphi-%.3lf", dphi);
+		get_uA_of_eps(output_name);
+		if (params::D_phi_step > -EPS)
+			dphi += params::D_phi_step;
+		else
+			dphi *= params::D_phi_log_step;
+	}
 }
 
 int main(int argc, char const *argv[])
@@ -289,38 +320,6 @@ int main(int argc, char const *argv[])
 			return -1;
 		}
 	}
-	char output_name[128];
-	generate_output_name(output_name);
-	get_uA_of_eps(output_name);
-	return 0;
-
-	ProgressBar progress;
-	Cluster cluster(params::N, params::L_size,
-			params::local_visibility, params::epsilon,
-			params::use_grid);
-	printf("log will be put to '%s'\n", output_name);
-	FILE *out = fopen(output_name, "wt");
-	assert(out != NULL);
-	cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
-	puts("relaxation");
-	progress.start(params::relaxation_iterations);
-	for (int it = 0; it < params::relaxation_iterations; ++it) {
-		cluster.evolve(heun_speed, heun_position);
-		progress.check_and_move(it);
-	}
-	progress.finish_successfully();
-	puts("observation");
-	progress.start(params::iterations);
-	for (int it = 0; it < params::iterations; ++it) {
-		cluster.evolve(heun_speed, heun_position);
-		progress.check_and_move(it);
-		if ((it & 7) == 7) {
-			fprintf(out, "%lf %lf\n",
-				params::relaxation_iterations + it * params::h,
-				cluster.get_avg_speed_val());
-		}
-	}
-	progress.finish_successfully();
-	fclose(out);
+	get_uA_of_eps_and_Dphi();
 	return 0;
 }
