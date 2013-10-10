@@ -247,14 +247,11 @@ void generate_output_name(char *name)
 	time_t t1 = time(NULL);
 	struct tm *t2 = localtime(&t1);
 	strftime(timestamp_buf, sizeof(timestamp_buf), "%b%d-%H%M", t2);
-	sprintf(name, "cluster-%s.log", timestamp_buf);
+	sprintf(name, "results/cluster-%s.log", timestamp_buf);
 }
 
-void get_uA_of_eps(const char *file_name)
+void get_uA_of_eps(FILE *out)
 {
-	printf("uA(eps) will be put to '%s'\n", file_name);
-	FILE *out = fopen(file_name, "wt");		
-	assert(out != NULL);
 	Cluster cluster(params::N, params::L_size, params::local_visibility,
 			params::epsilon, params::use_grid);
 	ProgressBar progress;
@@ -284,31 +281,34 @@ void get_uA_of_eps(const char *file_name)
 		}
 		progress.finish_successfully();
 		double speed_avg = speed_sum / params::iterations;
-		printf("epsilon %lf: speed: min %lf, max %lf, avg %lf\n", 
-			eps, speed_min, speed_max, speed_avg);
-		fprintf(out, "%lf   %lf %lf %lf\n",
-			eps, speed_min, speed_max, speed_avg);
+		printf("D_phi %lf, epsilon %lf: speed: min %lf, max %lf, avg %lf\n", 
+			params::D_phi, eps, speed_min, speed_max, speed_avg);
+		fprintf(out, "%lf %lf   %lf %lf %lf\n",
+			params::D_phi, eps, speed_min, speed_max, speed_avg);
 		if (params::epsilon_step > -EPS)
 			eps += params::epsilon_step;
 		else
 			eps *= params::epsilon_log_step;
 	}
-	fclose(out);
 }
 
 void get_uA_of_eps_and_Dphi()
 {
 	char output_name[128];
+	generate_output_name(output_name);
+	printf("results will be put to '%s'\n", output_name);
+	FILE *out = fopen(output_name, "wt");
+	assert(out != NULL);
 	for (double dphi = params::D_phi_start; dphi < params::D_phi_end + EPS; ) {
 		printf("== current D_phi %lf ==\n", dphi);
 		params::set_D_phi(dphi);
-		sprintf(output_name, "cluster-dphi-%.3lf", dphi);
-		get_uA_of_eps(output_name);
+		get_uA_of_eps(out);
 		if (params::D_phi_step > -EPS)
 			dphi += params::D_phi_step;
 		else
 			dphi *= params::D_phi_log_step;
 	}
+	fclose(out);
 }
 
 int main(int argc, char const *argv[])
