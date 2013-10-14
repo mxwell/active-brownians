@@ -34,6 +34,10 @@ namespace params {
 
 	bool use_grid = false;
 	ld mu = 2.5;
+	ld mu_start = 1;
+	ld mu_end = 9;
+	ld mu_step = 4;
+
 	ld D_E = 0.05;
 	ld D_v = 0;
 	ld D_phi = 0.24;
@@ -75,6 +79,11 @@ namespace params {
 		h = nval;
 		rh = h;
 		sqrt_h = sqrt(h);
+	}
+
+	void set_mu(const ld &nval)
+	{
+		mu = nval;
 	}
 
 	/* @returns 0 if ok, -1 otherwise */
@@ -139,9 +148,15 @@ namespace params {
 		} else {
 			printf("global visibility\n");
 		}
-		if (lua_numberexpr(L, "model.mu", &mu) == 0)
+		mu = -1000;
+		if (lua_numberexpr(L, "model.mu.start", &mu_start) == 0)
 			return -1;
-		printf("mu: %lf\n", mu);
+		if (lua_numberexpr(L, "model.mu.finish", &mu_end) == 0)
+			return -1;
+		if (lua_numberexpr(L, "model.mu.step", &mu_step) == 0)
+			return -1;
+		printf(" [!] mu in [%lf, %lf] with linear step %lf\n",
+			mu_start, mu_end, mu_step);
 		if (lua_numberexpr(L, "model.noise_intensities.passive_noise",
 					&temp) == 0)
 			return -1;
@@ -311,6 +326,65 @@ void get_uA_of_eps_and_Dphi()
 	fclose(out);
 }
 
+void get_uA_of_dphi(FILE *out)
+{
+	Cluster cluster(params::N, params::L_size, params::local_visibility,
+			params::epsilon, params::use_grid);
+	ProgressBar progress;
+	for (double dphi = params::D_phi_start; dphi < params::D_phi_end + EPS; ) {
+		params::set_D_phi(dphi);
+		printf("current: mu %lf, D_phi %lf\n",
+			params::mu, params::D_phi);
+		cluster.reinit(params::N, params::L_size, params::local_visibility, params::epsilon);
+		cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
+		puts("  relaxation");
+		progress.start(params::relaxation_iterations);
+		for (int it = 0; it < params::relaxation_iterations; ++it) {
+			cluster.evolve(heun_speed, heun_position);
+			progress.check_and_move(it);
+		}
+		progress.finish_successfully();
+		puts("  observation");
+		progress.start(params::iterations);
+		double speed_min = 1e9;
+		double speed_max = -1.0;
+		double speed_sum = 0;
+		for (int it = 0; it < params::iterations; ++it) {
+			cluster.evolve(heun_speed, heun_position);
+			progress.check_and_move(it);
+			double val = cluster.get_avg_speed_val();
+			speed_min = min(speed_min, val);
+			speed_max = max(speed_max, val);
+			speed_sum += val;
+		}
+		progress.finish_successfully();
+		double speed_avg = speed_sum / params::iterations;
+		printf("mu %lf, D_phi %lf: speed: min %lf, max %lf, avg %lf\n", 
+			params::mu, params::D_phi, speed_min, speed_max, speed_avg);
+		fprintf(out, "%lf %lf   %lf %lf %lf\n",
+			params::mu, params::D_phi, speed_min, speed_max, speed_avg);
+		if (params::D_phi_step > -EPS)
+			dphi += params::D_phi_step;
+		else
+			dphi *= params::D_phi_log_step;
+	}
+}
+
+void get_uA_of_mu_and_Dphi()
+{
+	char output_name[128];
+	generate_output_name(output_name);
+	printf("results will be put to '%s'\n", output_name);
+	FILE *out = fopen(output_name, "wt");
+	assert(out != NULL);
+	for (double mu = params::mu_start; mu < params::mu_end + EPS; mu += params::mu_step) {
+		printf("== current mu %lf ==\n", mu);
+		params::set_mu(mu);
+		get_uA_of_dphi(out);
+	}
+	fclose(out);
+}
+
 int main(int argc, char const *argv[])
 {
 	if (argc > 1) {
@@ -320,6 +394,6 @@ int main(int argc, char const *argv[])
 			return -1;
 		}
 	}
-	get_uA_of_eps_and_Dphi();
+	get_uA_of_mu_and_Dphi();
 	return 0;
 }
