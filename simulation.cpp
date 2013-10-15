@@ -256,8 +256,13 @@ Point heun_position(Point r, Point v)
 	return r + v * params::rh;
 }
 
+bool fixed_output = false;
 void generate_output_name(char *name)
 {
+	if (fixed_output) {
+		strcpy(name, "results/fixed.log");
+		return;
+	}
 	char timestamp_buf[64];
 	time_t t1 = time(NULL);
 	struct tm *t2 = localtime(&t1);
@@ -392,6 +397,12 @@ int main(int argc, char const *argv[])
 			printf("problems occur while loading params "
 				"from '%s'\n", argv[1]);
 			return -1;
+		}
+	}
+	fixed_output = false;
+	if (argc > 2) {
+		if (strcmp(argv[2], "--fixedoutput") == 0) {
+			fixed_output = true;
 		}
 	}
 	get_uA_of_mu_and_Dphi();
