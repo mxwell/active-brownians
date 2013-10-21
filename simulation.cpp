@@ -148,15 +148,10 @@ namespace params {
 		} else {
 			printf("global visibility\n");
 		}
-		mu = -1000;
-		if (lua_numberexpr(L, "model.mu.start", &mu_start) == 0)
+		if (lua_numberexpr(L, "model.mu", &temp) == 0)
 			return -1;
-		if (lua_numberexpr(L, "model.mu.finish", &mu_end) == 0)
-			return -1;
-		if (lua_numberexpr(L, "model.mu.step", &mu_step) == 0)
-			return -1;
-		printf(" [!] mu in [%lf, %lf] with linear step %lf\n",
-			mu_start, mu_end, mu_step);
+		set_mu(temp);
+		printf("mu is %lf\n", mu);
 		if (lua_numberexpr(L, "model.noise_intensities.passive_noise",
 					&temp) == 0)
 			return -1;
@@ -167,24 +162,10 @@ namespace params {
 			return -1;
 		set_D_v(temp);
 		printf("D_v: %lf\n", D_v);
-		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.start",
-					&D_phi_start) == 0)
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise",
+					&temp) == 0)
 			return -1;
-		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.finish",
-					&D_phi_end) == 0)
-			return -1;
-		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.log_step", &D_phi_log_step) == 0) {
-			if (lua_numberexpr(L, "model.noise_intensities.angular_noise.step",
-						&D_phi_step) == 0) {
-				printf("nor @step neither @log_step not found\n");
-				return -1;
-			} 
-			printf("D_phi in [%lf, %lf] with linear step %lf\n", D_phi_start, D_phi_end, D_phi_step);
-		} else {
-			D_phi_step = -1.0;
-			printf("D_phi in [%lf, %lf] with logarithmic step %lf\n", D_phi_start, D_phi_end, D_phi_log_step);
-		}
-		set_D_phi(D_phi_start);
+		set_D_phi(temp);
 		if (lua_numberexpr(L, "model.speed.lowest", &speed_lowest) == 0)
 			return -1;
 		if (lua_numberexpr(L, "model.speed.highest", &speed_highest) == 0)
@@ -390,6 +371,46 @@ void get_uA_of_mu_and_Dphi()
 	fclose(out);
 }
 
+void get_uA_of_time()
+{
+	char output_name[128];
+	generate_output_name(output_name);
+	printf("results will be put to %s\n", output_name);
+	FILE *out = fopen(output_name, "wt");
+	assert(out != NULL);
+	printf("current params:\n"
+		"mu %lf, eps %lf, D_phi %lf, D_E %lf, D_v %lf\n",
+		params::mu, params::epsilon, params::D_phi, params::D_E,
+		params::D_v);
+	printf("relax during %d its, observe during %d its\n",
+		params::relaxation_iterations, params::iterations);
+	Cluster cluster(params::N, params::L_size, params::local_visibility,
+			params::epsilon, params::use_grid);
+	ProgressBar progress;
+	cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
+	puts("\trelaxation");
+	progress.start(params::relaxation_iterations);
+	for (int it = 0; it < params::relaxation_iterations; ++it) {
+		cluster.evolve(heun_speed, heun_position);
+		progress.check_and_move(it);
+	}
+	progress.finish_successfully();
+	puts("\tobservation");
+	progress.start(params::iterations);
+	for (int it = 0; it < params::iterations; ++it) {
+		cluster.evolve(heun_speed, heun_position);
+		progress.check_and_move(it);
+		if ((it & 31) == 31) {
+			double val = cluster.get_avg_speed_val();
+			double cur_time = (params::relaxation_iterations + it) * params::h;
+			fprintf(out, "%lf\t%lf\n", cur_time, val);
+		}
+	}
+	progress.finish_successfully();
+	puts("\tDone.");
+	fclose(out);
+}
+
 int main(int argc, char const *argv[])
 {
 	if (argc > 1) {
@@ -405,6 +426,6 @@ int main(int argc, char const *argv[])
 			fixed_output = true;
 		}
 	}
-	get_uA_of_mu_and_Dphi();
+	get_uA_of_time();
 	return 0;
 }
