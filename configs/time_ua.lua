@@ -1,7 +1,7 @@
 integration = {
 	iterations = {
-		relaxation 	= 100 * 1000,
-		observation  =  1000 * 1000
+		relaxation 	= 0 * 100 * 1000,
+		observation  =  100 * 1000
 	},
 	time_step = 0.001,
 	use_grid = false,
@@ -16,10 +16,10 @@ model = {
 	noise_intensities = {
 		passive_noise = 0.00,
 		speed_noise = 0,
-		angular_noise = 0.01
+		angular_noise = 0.2
 	},
 	speed = {
-		lowest 	= -1.0,
+		lowest 	= 0.5,
 		highest	= 1.0
 	}
 }

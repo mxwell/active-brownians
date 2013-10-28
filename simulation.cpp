@@ -86,6 +86,12 @@ namespace params {
 		mu = nval;
 	}
 
+	void set_initspeed_range(ld lowest, ld highest)
+	{
+		speed_lowest = lowest;
+		speed_highest = highest;
+	}
+
 	/* @returns 0 if ok, -1 otherwise */
 	int load_params(const char *file_name) {
 		ld temp;
@@ -162,10 +168,22 @@ namespace params {
 			return -1;
 		set_D_v(temp);
 		printf("D_v: %lf\n", D_v);
-		if (lua_numberexpr(L, "model.noise_intensities.angular_noise",
-					&temp) == 0)
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.start",
+					&D_phi_start) == 0)
 			return -1;
-		set_D_phi(temp);
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.finish",
+					&D_phi_end) == 0)
+			return -1;
+		if (lua_numberexpr(L, "model.noise_intensities.angular_noise.step", &D_phi_step) == 0) {
+			if (lua_numberexpr(L, "model.noise_intensities.angular_noise.log_step", &D_phi_log_step) == 0)
+				return -1;
+			D_phi_step = -1.0;
+			set_D_phi(D_phi_start);
+			printf("D_phi in [%lf, %lf] w/ log.step %lf\n", D_phi_start, D_phi_end, D_phi_log_step);
+		} else {
+			set_D_phi(D_phi_start);
+			printf("D_phi in [%lf, %lf] w/ step %lf\n", D_phi_start, D_phi_end, D_phi_step);
+		}
 		if (lua_numberexpr(L, "model.speed.lowest", &speed_lowest) == 0)
 			return -1;
 		if (lua_numberexpr(L, "model.speed.highest", &speed_highest) == 0)
@@ -356,6 +374,25 @@ void get_uA_of_dphi(FILE *out)
 	}
 }
 
+double get_uA_for_dphi(double dphi_val)
+{
+	Cluster cluster(params::N, params::L_size, params::local_visibility,
+			params::epsilon, params::use_grid);
+	ProgressBar progress;
+	params::set_D_phi(dphi_val);
+	printf("\tD_phi: %lf, init.speed in [%lf, %lf]\n",
+			params::D_phi, params::speed_lowest, params::speed_highest);
+	cluster.seed_uniformly(params::speed_lowest, params::speed_highest);
+	puts("\trelaxation");
+	progress.start(params::relaxation_iterations);
+	for (int it = 0; it < params::relaxation_iterations; ++it) {
+		cluster.evolve(heun_speed, heun_position);
+		progress.check_and_move(it);
+	}
+	progress.finish_successfully();
+	return cluster.get_avg_speed_val();
+}
+
 void get_uA_of_mu_and_Dphi()
 {
 	char output_name[128];
@@ -411,6 +448,32 @@ void get_uA_of_time()
 	fclose(out);
 }
 
+void get_uA_of_dphi_for_bistability()
+{
+	char output_name[128];
+	generate_output_name(output_name);
+	printf("results will be put to %s\n", output_name);
+	FILE *out = fopen(output_name, "wt");
+	assert(out != NULL);
+	for (double dphi = params::D_phi_start; dphi < params::D_phi_end; ) {
+		printf("D_phi: %lf\n", dphi);
+		/* ordered initial state */
+		params::set_initspeed_range(0.5, 1.0);
+		double from_ordered = get_uA_for_dphi(dphi);
+		/* disordered */
+		params::set_initspeed_range(-1.0, 1.0);
+		double from_disordered = get_uA_for_dphi(dphi);
+		printf("D_phi: %lf, uA: from ordered state %lf, from disordered state %lf\n",
+				params::D_phi, from_ordered, from_disordered);
+		fprintf(out, "%lf\t%lf %lf\n", params::D_phi, from_ordered, from_disordered);
+		if (params::D_phi_step > -EPS)
+			dphi += params::D_phi_step;
+		else
+			dphi *= params::D_phi_log_step;
+	}
+	fclose(out);
+}
+
 int main(int argc, char const *argv[])
 {
 	if (argc > 1) {
@@ -426,6 +489,6 @@ int main(int argc, char const *argv[])
 			fixed_output = true;
 		}
 	}
-	get_uA_of_time();
+	get_uA_of_dphi_for_bistability();
 	return 0;
 }
