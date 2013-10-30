@@ -266,7 +266,12 @@ void generate_output_name(char *name)
 	time_t t1 = time(NULL);
 	struct tm *t2 = localtime(&t1);
 	strftime(timestamp_buf, sizeof(timestamp_buf), "%b%d-%H%M", t2);
-	sprintf(name, "results/cluster-%s.log", timestamp_buf);
+	if (params::local_visibility)
+		sprintf(name, "results/%s-N%d-eps%.2lf-mu%.1lf.log", timestamp_buf,
+			params::N, params::epsilon, params::mu);
+	else
+		sprintf(name, "results/%s-N%d-noeps-mu%.1lf.log", timestamp_buf,
+			params::N, params::mu);
 }
 
 void get_uA_of_eps(FILE *out)
